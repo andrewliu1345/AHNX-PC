@@ -1,0 +1,74 @@
+; BankGwq.def : Declares the module parameters for the DLL.
+
+LIBRARY
+
+EXPORTS
+    ; Explicit exports can go here
+
+    ; SCCBA API
+    ; Push Information
+    SCCBA_StartInfoHtml                @0201
+
+    ; Public Interface
+    SCCBA_inputNumber                  @0301
+    SCCBA_PlayVoice                    @0302
+
+    ;Electronic Card
+    SCCBA_DownHeadFile                 @0401
+    SCCBA_FindHeadPhoto                @0402
+    SCCBA_DelHeadFile                  @0403	
+    SCCBA_StartElectronicCard          @0404
+    SCCBA_ReadDeviceId                 @0410
+
+    ; Evaluate
+    SCCBA_StartEvaluate                @0501
+
+    ; Security Keyboard
+    SCCBA_ReadPin                      @0601
+    SCCBA_InitPinPad                   @0602
+    SCCBA_UpdateMKey                   @0603
+    SCCBA_DownLoadWKey                 @0604
+    SCCBA_ActiveWKey                   @0605
+
+    ; Electronic Sign
+    SCCBA_signPDF                      @0701
+    SCCBA_startSignPDF                 @0702
+    SCCBA_getSignPDFState              @0703
+    SCCBA_cancelSignPDF                @0704
+    SCCBA_showPDF                      @0705
+    SCCBA_confirmPDF                   @0706
+    SCCBA_signPDFEx                    @0707
+
+	; Finger
+	;SCCBA_ReadFinger                   @0801
+
+    ; Question
+    SCCBA_OperateQuestion              @0901
+    SCCBA_GetUserOperateRstHtml        @0902
+
+    ; List Selection
+    SCCBA_ActiveSignQryInfo            @1001
+
+	LoadClearZMK                       @1002
+	LoadZMK                            @1003
+	LoadWorkKey                        @1004
+	CheckKey                           @1005
+	GetPin                             @1006 
+	InitPinPad                         @1007
+	ClosePinPad                        @1008
+	 Evaluate                          @1009
+	 DisplayInfo                       @1010
+	 ShowPDF                           @1011
+	 DownloadFiles                     @1012
+	 SetTabletPictruePlay              @1013
+	 DeleteFiles                       @1014
+	 WriteDeviceId                     @1015
+	 ReadDeviceId                      @1016  
+	 GetPlainText                      @1017
+	 CheckTellerPhoto                  @1018
+	 SetTabletVideoPlay                @1019
+	 SetTabletAllPlay                  @1020
+	 FingerEnable                      @1021
+	 FPGetFeature                      @1022
+     FPGetTemplate                     @1023
+     FPGetImgData                      @1024

@@ -1,0 +1,56 @@
+; BankGwq.def : Declares the module parameters for the DLL.
+
+LIBRARY
+
+EXPORTS
+    ; Explicit exports can go here
+
+    ; ICBC API
+
+    ; Service Class Interface
+    GetErrorMsg                        @020101
+    GetWorkingStatus                   @020102
+    GetDeviceInfo                      @020103
+    SetupApp                           @020104
+    IsDeviceLinkOn                     @020105
+    CancelCustomProcess                @020106
+    SetWorkingMode                     @020107
+
+    ; Resource and File
+    SaveFile                           @020201
+    GetFileList                        @020202
+    DeleteRcFile                       @020203
+    DeleteAllFile                      @020204
+
+    ; AD
+    SetPosterType                      @020301
+    ReadVoice                          @020302
+
+    ; Security Keyboard Interface
+    GenerateKeyFromPw                  @020401
+    SetPwMkey                          @020402
+    SetPwWkey                          @020403
+    GetPwCheckValue                    @020404
+    InputPassword                      @020405
+    SetPassword                        @020406
+
+    ; Electronic Sign Screen
+    GenerateKeyFromScreen              @020501
+    SetScreenMkey                      @020502
+    SetScreenWkey                      @020503
+    GetScreenCheckValue                @020504
+    ShowInfoAndWaitSign                @020505
+
+    ; Display
+    ShowWeb                            @020601
+    ShowWebAndPoster                   @020602
+    ExcuteJs                           @020603
+    ClearMainScreen                    @020604
+
+    ; Special version
+    Reboot                             @030601
+    SetVolume                          @030602
+
+ 
+
+    

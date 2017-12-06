@@ -1,0 +1,5 @@
+LIBRARY
+EXPORTS
+FPGetFeature      @1001
+FPGetTemplate     @1002
+FPGetImgData      @1003
