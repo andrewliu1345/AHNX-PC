@@ -25,11 +25,14 @@ enum COMMUNICATIONTYPE
 #define ERRCODE_OPERATION_IS_IN_PROCESS  16
 #define ERRCODE_SYSCALL_FAILURE          17
 #define ERRCODE_RESPONSECODE_WRONG       18
-#define ERRCODE_CANCEL_OPERATION         -23
+#define ERRCODE_CANCEL_OPERATION         19
 
 int _stdcall comm_open(int iType, int iPortNum, int iBaudRate);
 int _stdcall comm_cancelio(void);
 int _stdcall comm_close();
+
+int _stdcall comm_write_raw(unsigned char *pBuffer, int iBufferSize, int iTimeout);
+int _stdcall comm_read_raw(unsigned char *pBuffer, int *pBufferSize, int iTimeout);
 
 int _stdcall comm_frame_send(unsigned char *pBuffer, int iBufferSize);
 int _stdcall comm_frame_receive(unsigned char *pBuffer, int *pBufferSize, int iTimeout);
