@@ -8,13 +8,14 @@
 #include <iostream>  
 #include <fstream>  
 #include <atlstr.h>
+#include <io.h>
 
 
 #define SIGNPDF_DEBUG
 
 #ifdef BANKGWQ_SCCBA_API
 CString ToVoiceStr(int VoiceType);
-
+void getFolderDayFile(CString pathStr, vector<CString>& arrStrFile);
 int WriteLog(char *log)
 {
 	FILE *pFile;
@@ -408,6 +409,14 @@ BANKGWQ_API int __stdcall SCCBA_FindHeadPhoto(int iPortNo, char * pFilename, int
 			memset(temp, 0, sizeof(temp));
 			memcpy(temp, &szBuffer[2], 4);
 			iFileListLen = atoi(temp);
+			if (iFileListLen == 0)
+			{
+				return 1;
+			}
+			else
+			{
+				return 0;
+			}
 			for (index = 0; index < iFileListLen; index++)
 				if (szBuffer[6 + index] == '&')
 					szBuffer[6 + index] = ';';
@@ -641,7 +650,9 @@ BANKGWQ_API int __stdcall SCCBA_StartEvaluate(int iPortNo, char * tellerID, char
 		iRet = comm_frame_receive(szBuffer, &iLen, strTimeout * 1000);
 		if ((szBuffer[0] == 'S') && (szBuffer[1] == 'E') && (szBuffer[2] == '2') && (szBuffer[3] == '0'))
 			if (iResult)
+			{
 				*iResult = szBuffer[4];
+			}
 	}
 	comm_close();
 
@@ -2629,9 +2640,15 @@ BANKGWQ_API int __stdcall  WriteDeviceId(int iPortNo, char extendPort, int iBaud
 	sprintf((char *)&szBuffer[iIndex], "%02d", str_len);
 	iIndex += 2;
 	memcpy(szBuffer + iIndex, pDeviceId, str_len);
+	iIndex += str_len;
 	iRet = comm_frame_write(szBuffer, iIndex, szBuffer, &iLen, iTimeOut * 1000);
-
-	return 0;
+	comm_close();
+	if (iRet == 0)
+	{
+		return 0;
+	}
+	sprintf(psErrInfo, "%d|%s", iRet, "写入失败，请确认设备是否连接！");
+	return iRet;
 }
 /***
 6.1.1.2读取设备号
@@ -2651,15 +2668,23 @@ BANKGWQ_API int __stdcall ReadDeviceId(int iPortNo, char extendPort, int iBaudRa
 	szBuffer[iIndex++] = 'D';
 	szBuffer[iIndex++] = 0;
 	iRet = comm_frame_write(szBuffer, iIndex, szBuffer, &iLen, iTimeOut * 1000);
+	comm_close();
 	//if (iRet == 0)
 	//{
-	int iReadSize = sizeof(szBuffer);
-	memset(szBuffer, 0, sizeof(szBuffer));
-	iRet = comm_frame_receive(szBuffer, &iReadSize, iTimeOut * 1000);
-	comm_close();
-	if ((szBuffer[0] == 'I') && (szBuffer[1] == 'D') && (szBuffer[2] == '0'))
+
+// 	memset(szBuffer, 0, sizeof(szBuffer));
+// 	iRet = comm_frame_receive(szBuffer, &iReadSize, iTimeOut * 1000);
+// 	comm_close();
+	if (iRet == 0 && (szBuffer[0] == 'I') && (szBuffer[1] == 'D') && iLen > 8 && (szBuffer[2] == '0') && szBuffer[3] == '0')
 	{
-		memcpy(pDeviceId, szBuffer, iReadSize);
+		char ilen[4] = { 0 };
+		ilen[0] = szBuffer[4];
+		ilen[1] = szBuffer[5];
+		ilen[2] = szBuffer[6];
+		ilen[3] = szBuffer[7];
+
+		int iReadSize = atoi(ilen);
+		memcpy(pDeviceId, szBuffer + 8, iReadSize);
 		return 0;
 	}
 
@@ -2685,7 +2710,7 @@ psErrInfo：输出信息 “错误代码|错误信息”，最大长度32字节
 
 //初始化主秘钥明文
 BANKGWQ_API int __stdcall  LoadClearZMK(int  iPortNo, char extendPort, int iBaudRate, int iTimeOut, int ZmkIndex, int ZmkLength, char *Zmk, char *CheckValues, char * psErrInfo) {
-	return	SCCBA_InitPinPad(iPortNo);
+	return	SCCBA_UpdateMKey(iPortNo, ZmkIndex, ZmkLength, Zmk, CheckValues);
 }
 /***
 6.1.1.4密文注入主密钥ZMK
@@ -2746,12 +2771,47 @@ CString ToVoiceStr(int VoiceType)
 	return voicestr;
 }
 
+void getFolderDayFile(CString pathStr, vector<CString>& arrStrFile)
+{
+	_finddata_t file;
+	int k;
+	long HANDLE;
+	k = HANDLE = _findfirst(pathStr.GetBuffer(), &file);
+	if (file.attrib!=_A_SUBDIR)
+	{
+		arrStrFile.push_back(pathStr);
+		return;
+	}
+	while (k != -1)
+	{
+		//cout << file.name << endl;
+		k = _findnext(HANDLE, &file);
+		CString iName = pathStr + file.name;
+		if (file.attrib == _A_SUBDIR)
+		{
+			getFolderDayFile(iName, arrStrFile);
+		}
+		else
+		{
+			arrStrFile.push_back(iName);
+		}
+
+	}
+	_findclose(HANDLE);
+}
+
 BANKGWQ_API int __stdcall GetPlainText(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, int VoiceType, char *DisplayText, int DisPlayType, int EndType, int * PlainTextLength, char * PLainText, char * psErrInfo)
 {
 	CString voicestr = ToVoiceStr(VoiceType);
 
-	int ret = SCCBA_ReadPin(iPortNo, 5, 1, 0, iTimeOut, voicestr.GetBuffer(), psErrInfo, EndType, PLainText);
-	return 0;
+	int ret = SCCBA_ReadPin(iPortNo, 1, 1, *PlainTextLength, iTimeOut, voicestr.GetBuffer(), psErrInfo, EndType, PLainText);
+	if (ret == 0)
+	{
+		*PlainTextLength = strlen(PLainText);
+		return 0;
+	}
+	sprintf(psErrInfo, "%d|%s", ret, "获取失败");
+	return ret;
 }
 
 #pragma endregion
@@ -2763,9 +2823,7 @@ BANKGWQ_API int __stdcall CheckTellerPhoto(int iPortNo, char extendPort, int iBa
 	int ret = SCCBA_FindHeadPhoto(iPortNo, tellerPhotoName, photoname.GetLength());
 	if (ret != 0)
 	{
-		CString errstr;
-		errstr.Format("%d|%s", ret, "查找失败");
-		memcpy(psErrInfo, errstr.GetBuffer(), errstr.GetLength());
+		sprintf(psErrInfo, "%d|%s", ret, "查找失败");
 	}
 	return ret;
 }
@@ -2908,7 +2966,9 @@ BANKGWQ_API int __stdcall  LoadWorkKey(int iPortNo, char extendPort, int iBaudRa
 **/
 
 BANKGWQ_API int __stdcall  CheckKey(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, int KeyIndex, int KeyType, int *KeyLength, char *CheckValue, char * psErrInfo) {
-	return	0;
+	int iRet = comm_open(iPortNo, iPortNo, 9600);
+	if (iRet)
+		return iRet;
 
 }
 /***
@@ -2940,31 +3000,99 @@ BANKGWQ_API int __stdcall  ClosePinPad(int iPortNo, char extendPort, int iBaudRa
 **/
 BANKGWQ_API int __stdcall  Evaluate(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, char* tellerName, char* tellerNo, int nStarLevel, char* photoPath, int *evalValue, char * psErrInfo) {
 
+	char retValue[1] = { 0 };
 	char*strOpenData = NULL;
 	char* strDispData = NULL;
 	char*strVoice = "请对我们的服务进行评价";
-	return SCCBA_StartEvaluate(iPortNo, tellerNo, photoPath, tellerName, strOpenData, strDispData, strVoice, iTimeOut, iTimeOut, (char*)evalValue);
+	int iret = SCCBA_StartEvaluate(iPortNo, tellerNo, photoPath, tellerName, strOpenData, strDispData, strVoice, iTimeOut, iTimeOut, retValue);
+	if (iret != 0)
+	{
+		sprintf(psErrInfo, "%d|%s", iret, "显示失败");
+		return iret;
+	}
+	*evalValue = atoi(retValue);
+	return iret;
 
 }
 /****
 6.1.2.2显示交互信息
 **/
-BANKGWQ_API int __stdcall  DisplayInfo(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, char * Info, int *iDisplayResult, char * psErrInfo) {
-	char*strVoice = "请确认信息是否正确";
-
-	return	SCCBA_StartInfoHtml(iPortNo, iTimeOut, 1, strVoice, Info, iDisplayResult);
+BANKGWQ_API int __stdcall DisplayInfo(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, int Infotype, char *Info, int *iDisplayResult, char * psErrInfo) {
+	char*strVoice = "请确认您的交易信息";
+	int type = 0;
+	if (Infotype == 2)
+	{
+		type = 1;
+	}
+	return	SCCBA_StartInfoHtml(iPortNo, iTimeOut, type, strVoice, Info, iDisplayResult);
 }
 /****
 6.1.2.3电子签名
 **/
-BANKGWQ_API int __stdcall ShowPDF(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, char *pdfPath, char *location, char *signPdfPath, char *signImgPath, int * signType, char *signData, char * psErrInfo) {
-	unsigned char *pdfdata = NULL;
-	int pdfdatalen = NULL;
+BANKGWQ_API int __stdcall ShowPDF(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, char *pdfPath, char *location, char * signpicSize, char *signPdfPath, char *signImgPath, int * signType, char *signData, long* signDataLen, char * psErrInfo) {
+	char *pdfdata;
+	char  *picdata;
+	int pdfdatalen = 0;
 	int page = 1;
-	int x = NULL;
-	int y = NULL; int w = NULL; int h = NULL;
-	char *picdata = NULL; int *picdatalen = NULL; char *signeddata = NULL; int *signedLen = NULL;
-	return 	SCCBA_signPDF(iPortNo, pdfdata, pdfdatalen, page, x, y, w, h, iTimeOut, picdata, picdatalen, signeddata, signedLen);
+	int iFileSize = 0;
+	int piclen = 0;
+	char * x_char = strtok(location, ",");
+	char *y_char = strtok(NULL, ",");
+
+	char *w_char = strtok(signpicSize, ":");
+	char *h_char = strtok(NULL, ":");
+
+	int x = atoi(x_char);
+	int y = atoi(y_char);
+	int w = atoi(w_char);
+	int h = atoi(h_char);
+	piclen = w*h + 2000;
+	picdata = new char[piclen];
+	memset(picdata, 0, piclen);
+	ifstream pFile(pdfPath, ios::binary);
+	if (!pFile.is_open())
+	{
+		sprintf(psErrInfo, "%d|%s", -30, "文件读取失败");
+
+		return -30;
+	}
+
+	pFile.seekg(0, ios::end);
+	iFileSize = pFile.tellg();
+	pFile.clear();
+	pFile.seekg(0, ios::beg);
+	pdfdata = new char[iFileSize];
+	memset(pdfdata, 0, iFileSize);
+	pFile.read(pdfdata, iFileSize);
+	pFile.close();
+	int iret = SCCBA_signPDF(iPortNo, (unsigned char *)pdfdata, iFileSize, page, x, y, w, h, iTimeOut, picdata, &piclen, signData, (int *)signDataLen);
+
+	if (iret != 0)
+	{
+		sprintf(psErrInfo, "%d|%s", iret, "签名失败");
+		return iret;
+	}
+	ofstream picFile(signImgPath, ios::binary);//保存BMP
+	if (!picFile.is_open())
+	{
+		delete[]picdata;
+		sprintf(psErrInfo, "%d|%s", -31, "文件保存失败");
+		return -31;
+	}
+	picFile.write(picdata, iFileSize);
+	picFile.close();
+	ofstream saPdfFile(signPdfPath, ios::binary);//保存PDF
+	if (!saPdfFile.is_open())
+	{
+		delete[]pdfdata;
+		sprintf(psErrInfo, "%d|%s", -31, "文件保存失败");
+		return -31;
+	}
+	saPdfFile.write(pdfdata, iFileSize);
+	saPdfFile.close();
+	delete[]picdata;
+	delete[]pdfdata;
+	return iret;
 }
 
 int  DownOneFile(char* path, char * &psErrInfo, int &ret, int iPortNo, int iBaudRate, unsigned char * sendbuff, unsigned char * retbuff, int retlen, int iTimeOut)
@@ -3061,17 +3189,35 @@ BANKGWQ_API int __stdcall DownloadFiles(int iPortNo, char extendPort, int iBaudR
 	unsigned char  retbuff[4096] = { 0 };
 	int retlen = 0;
 	int ret = -1;
+	int type = -1;
 	switch (filetype)
 	{
-	case 2: {
-
-		ret = DownOneFile(iPortNo, path, 0);
-		//return DownOneFile(path, psErrInfo, ret, iPortNo, iBaudRate, sendbuff, retbuff, retlen, iTimeOut);
+	case 0:
+		type = 4;
 		break;
-	}
+	case 1:
+		type = 2;
+		ret = DownOneFile(iPortNo, path, filetype);
+		return ret;
+		break;
+	case 2:
+		type = 1;
+		break;
+	case 3:
+		type = 3;
+		break;
 	default:
 		break;
 	}
+	vector<CString> filearry;
+	getFolderDayFile(path,filearry);
+	for each (CString filename in filearry)
+	{
+		ret = DownOneFile(iPortNo, path, filetype);
+	}
+
+	//return DownOneFile(path, psErrInfo, ret, iPortNo, iBaudRate, sendbuff, retbuff, retlen, iTimeOut);
+
 
 	return ret;
 }

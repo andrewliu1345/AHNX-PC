@@ -53,19 +53,20 @@ BANKGWQ_API int __stdcall SCCBA_ActiveSignQryInfo(int iPortNo, char * strVoice, 
 
 
 // ∞≤ª’≈©–≈
+BANKGWQ_API int __stdcall DisplayInfo(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, int Infotype, char *Info, int *iDisplayResult, char * psErrInfo);
 BANKGWQ_API int __stdcall ReadDeviceId(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, char *pDeviceId, char * psErrInfo);
-BANKGWQ_API int __stdcall  WriteDeviceId(int iPortNo, char extendPort, int iBaudRatee, int iTimeOut, char *pDeviceId, char * psErrInfo);
+BANKGWQ_API int __stdcall WriteDeviceId(int iPortNo, char extendPort, int iBaudRatee, int iTimeOut, char *pDeviceId, char * psErrInfo);
 BANKGWQ_API int __stdcall DeleteFiles(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, int filetype, char * psErrInfo);
-BANKGWQ_API int __stdcall	SetTabletPictruePlay(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, int nSleepTime, char * psErrInfo);
+BANKGWQ_API int __stdcall SetTabletPictruePlay(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, int nSleepTime, char * psErrInfo);
 BANKGWQ_API int __stdcall DownloadFiles(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, char* path, int filetype, char * psErrInfo);
-BANKGWQ_API int __stdcall ShowPDF(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, char *pdfPath, char *location, char *signPdfPath, char *signImgPath, int * signType, char *signData, char * psErrInfo);
-BANKGWQ_API int __stdcall  Evaluate(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, char* tellerName, char* tellerNo, int nStarLevel, char* photoPath, int *evalValue, char * psErrInfo);
-BANKGWQ_API int __stdcall  ClosePinPad(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, char * psErrInfo);
-BANKGWQ_API int __stdcall  GetPin(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, int KeyIndex, char *AccNo, int VoiceType, int EndType, int *PinLength, char *PinCrypt, char * psErrInfo);
-BANKGWQ_API int __stdcall  LoadClearZMK(int  iPortNo, char extendPort, int iBaudRate, int iTimeOut, int ZmkIndex, int ZmkLength, char *Zmk, char *CheckValues, char * psErrInfo);
-BANKGWQ_API int __stdcall  CheckKey(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, int KeyIndex, int KeyType, int *KeyLength, char *CheckValue, char * psErrInfo);
-BANKGWQ_API int __stdcall  LoadWorkKey(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, int KeyIndex, int KeyType, int KeyLength, char *Key, char *CheckValue1, char *CheckValue2, char * psErrInfo);
-BANKGWQ_API int __stdcall  LoadZMK(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, int ZmkIndex, int ZmkLength, char *Zmk, char *CheckValue1, char *CheckValue2, char * psErrInfo);
+BANKGWQ_API int __stdcall ShowPDF(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, char *pdfPath, char *location, char * signpicSize, char *signPdfPath, char *signImgPath, int * signType, char *signData, long* signDataLen, char * psErrInfo);
+BANKGWQ_API int __stdcall Evaluate(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, char* tellerName, char* tellerNo, int nStarLevel, char* photoPath, int *evalValue, char * psErrInfo);
+BANKGWQ_API int __stdcall ClosePinPad(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, char * psErrInfo);
+BANKGWQ_API int __stdcall GetPin(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, int KeyIndex, char *AccNo, int VoiceType, int EndType, int *PinLength, char *PinCrypt, char * psErrInfo);
+BANKGWQ_API int __stdcall LoadClearZMK(int  iPortNo, char extendPort, int iBaudRate, int iTimeOut, int ZmkIndex, int ZmkLength, char *Zmk, char *CheckValues, char * psErrInfo);
+BANKGWQ_API int __stdcall CheckKey(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, int KeyIndex, int KeyType, int *KeyLength, char *CheckValue, char * psErrInfo);
+BANKGWQ_API int __stdcall LoadWorkKey(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, int KeyIndex, int KeyType, int KeyLength, char *Key, char *CheckValue1, char *CheckValue2, char * psErrInfo);
+BANKGWQ_API int __stdcall LoadZMK(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, int ZmkIndex, int ZmkLength, char *Zmk, char *CheckValue1, char *CheckValue2, char * psErrInfo);
 BANKGWQ_API int __stdcall GetPlainText(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, int VoiceType, char *DisplayText,int DisPlayType, int EndType, int *PlainTextLength, char *PLainText, char * psErrInfo);
 BANKGWQ_API int __stdcall CheckTellerPhoto(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, char *tellerPhotoName, char* psErrInfo);
 BANKGWQ_API int __stdcall SetTabletVideoPlay(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, char * psErrInfo);

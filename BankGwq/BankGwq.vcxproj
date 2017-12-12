@@ -22,7 +22,7 @@
     <ProjectGuid>{116BB7CA-551E-4ADB-84B7-6F5074246E9E}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>BankGwq</RootNamespace>
-    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>7.0</WindowsTargetPlatformVersion>
     <ProjectName>DevPWD</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -74,8 +74,7 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <TargetName>test_gwq</TargetName>
-    <LibraryPath>F:\Work\A30\山东城商联盟\PC\GwqDll\BankGwq\lib\debug;C:\Program Files %28x86%29\Windows Kits\10\Lib\10.0.15063.0\um\x86;$(LibraryPath)</LibraryPath>
+    <LibraryPath>lib\debug;C:\Program Files %28x86%29\Windows Kits\10\Lib\10.0.15063.0\um\x86;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
@@ -96,7 +95,7 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>BANKGWQ_SCCBA_API;_CRT_SECURE_NO_WARNINGS;WIN32;_DEBUG;_WINDOWS;_USRDLL;BANKGWQ_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>C:\Program Files %28x86%29\Windows Kits\10\Include\10.0.15063.0\shared;\lib\debug;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Program Files %28x86%29\Windows Kits\10\Include\10.0.15063.0\shared;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>

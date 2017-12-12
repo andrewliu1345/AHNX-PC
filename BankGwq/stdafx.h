@@ -21,5 +21,7 @@
 #include "stdlib.h"
 #include "corecrt_malloc.h"
 #include <iostream>
+#include <string.h>
+#include <vector>
 using namespace std;
 
