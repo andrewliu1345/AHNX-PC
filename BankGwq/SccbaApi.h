@@ -58,7 +58,7 @@ BANKGWQ_API int __stdcall ReadDeviceId(int iPortNo, char extendPort, int iBaudRa
 BANKGWQ_API int __stdcall WriteDeviceId(int iPortNo, char extendPort, int iBaudRatee, int iTimeOut, char *pDeviceId, char * psErrInfo);
 BANKGWQ_API int __stdcall DeleteFiles(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, int filetype, char * psErrInfo);
 BANKGWQ_API int __stdcall SetTabletPictruePlay(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, int nSleepTime, char * psErrInfo);
-BANKGWQ_API int __stdcall DownloadFiles(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, char* path, int filetype, char * psErrInfo);
+BANKGWQ_API int __stdcall DownloadFiles(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, char* path, int filetype, char* tellerPhotoName, char * psErrInfo);
 BANKGWQ_API int __stdcall ShowPDF(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, char *pdfPath, char *location, char * signpicSize, char *signPdfPath, char *signImgPath, int * signType, char *signData, long* signDataLen, char * psErrInfo);
 BANKGWQ_API int __stdcall Evaluate(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, char* tellerName, char* tellerNo, int nStarLevel, char* photoPath, int *evalValue, char * psErrInfo);
 BANKGWQ_API int __stdcall ClosePinPad(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, char * psErrInfo);

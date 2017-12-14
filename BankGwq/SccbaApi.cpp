@@ -350,9 +350,9 @@ BANKGWQ_API int __stdcall SCCBA_StartInfoHtml(int iPortNo, int iTimeOut, int mod
 		if ((szBuffer[0] == 'S') && (szBuffer[1] == 'I') && (szBuffer[2] == '2') && (szBuffer[3] == '0'))
 		{
 			char tmp[] = { szBuffer[4] };
-			*iResult =atoi(tmp) ;
+			*iResult = atoi(tmp);
 		}
-		
+
 	}
 
 	comm_close();
@@ -469,10 +469,12 @@ BANKGWQ_API int __stdcall SCCBA_PlayVoice(int iPortNo, char *strVoice)
 	return iRet;
 }
 
-int  DownOneFile(int iPortNo, char * pFilePath, int iFileType)
+int  DownOneFile(int iPortNo, char * pFilePath, char *pFilename, int iFileType)
 {
-	string filename = PathFindFileName(pFilePath);
-	char* pFilename = (char *)filename.c_str();
+	// 	string filepath(pFilePath);
+	// 	string suffixStr = filepath.substr(filepath.find_last_of('.') + 1);//获取文件后缀 
+	// 	char pFilename[MAX_PATH] = {0} ;
+	// 	sprintf(pFilename, "%s.%s", filename, suffixStr.c_str());
 	FILE *pFile;
 	int iRet, iIndex;
 	int iFilenameLen;
@@ -555,7 +557,7 @@ int  DownOneFile(int iPortNo, char * pFilePath, int iFileType)
 //4. Electronic Card  下载员工头像
 BANKGWQ_API int __stdcall SCCBA_DownHeadFile(int iPortNo, char *pFilePath, char* pFilename)
 {
-	return DownOneFile(iPortNo, pFilePath, 1);
+	return DownOneFile(iPortNo, pFilePath, pFilename, 1);
 
 }
 //查询员工头像
@@ -1070,17 +1072,17 @@ int gSignPdf_Cancel = 0;
 int __stdcall SCCBA_signPDFByType(int type, int iPortNo, char* pButtonInfo, unsigned char *pdfdata, int pdfdatalen, int page, int x, int y, int w, int h, int iTimeout, char *picdata, int *picdatalen, char *signeddata, int *signedLen)
 {
 #ifdef SIGNPDF_DEBUG
-	FILE *pSignFile, *pSignDataFile;
+	FILE *pSignFile, *pSignDataFile, *pSignPdfFile;
 #endif
 	int iRet, iIndex;
 	int iTotalSize, iSegmentSize, iWriteSize, iReadSize, iCurrentlSegment, iTotalSegment;
 	int iHeaderSize, iStatusInfoSize, iFilenameSize, iMainpageInfoSize;
-	int iStatusInfoLength, iFilenameLength, iMainpageInfoLength, iSignDataLength;
+	int iStatusInfoLength, iFilenameLength, iMainpageInfoLength, iSignDataLength, iSignPngLength, iSignPdfFileLength;
 	char szPdfFilename[] = "esign.pdf";
-	unsigned char szBuffer[FRAME_MAX_SIZE], *pPdfData, *pPicData, *pSignData, *pUtf8BtnInfo;
-	char cSignPngFilename[MAX_PATH], cSignDataFilename[MAX_PATH];
+	unsigned char szBuffer[FRAME_MAX_SIZE], *pPdfData, *pPicData, *pSignData, *pSignPdfDate, *pUtf8BtnInfo;
+	char cSignPngFilename[MAX_PATH] = { 0 }, cSignDataFilename[MAX_PATH] = { 0 }, cSignPdfFilename[MAX_PATH] = { 0 };
 
-	int iRetPicBufLen, iRetSignDataBufLen, iRetPicBufSize, iRetSignDataBufSize;
+	int iRetPicBufLen, iRetSignDataBufLen, iRetSignPdfBufLen, iRetPicBufSize, iRetSignDataBufSize, iRetSignPdfBufSize;
 
 	if ((pdfdata == NULL) || (pdfdatalen <= 0))
 		return ERRCODE_INVALID_PARAMETER;
@@ -1106,11 +1108,12 @@ int __stdcall SCCBA_signPDFByType(int type, int iPortNo, char* pButtonInfo, unsi
 	if (iRet)
 		return iRet;
 
-	memset(cSignPngFilename, 0, sizeof(cSignPngFilename));
-	memset(cSignDataFilename, 0, sizeof(cSignDataFilename));
+	// 	memset(cSignPngFilename, 0, sizeof(cSignPngFilename));
+	// 	memset(cSignDataFilename, 0, sizeof(cSignDataFilename));
 #ifdef SIGNPDF_DEBUG
 	pSignFile = NULL;
 	pSignDataFile = NULL;
+	pSignPdfFile = NULL;
 #endif
 
 	iTotalSize = 0;
@@ -1252,7 +1255,7 @@ int __stdcall SCCBA_signPDFByType(int type, int iPortNo, char* pButtonInfo, unsi
 
 	if (w && h && (type == 0))
 	{
-		char currSegment[5], totalSegment[5], currSegmentSize[5], signDataSize[7];
+		char currSegment[5] = {0}, totalSegment[5] = { 0 }, currSegmentSize[5] = { 0 }, signDataSize[7] = { 0 }, signPngSize[7] = { 0 }, signPdfSize[7] = { 0 };
 		int  iCurrSegment, iTotalSegment, iCurrSegmentSize;
 
 		//Start to receive sign data
@@ -1269,17 +1272,25 @@ int __stdcall SCCBA_signPDFByType(int type, int iPortNo, char* pButtonInfo, unsi
 		{
 			GetCurrentDirectory(MAX_PATH, cSignPngFilename);
 			memcpy(cSignDataFilename, cSignPngFilename, strlen(cSignPngFilename));
+			memcpy(cSignPdfFilename, cSignPngFilename, strlen(cSignPngFilename));
 			sprintf(&cSignPngFilename[strlen(cSignPngFilename)], "%s", "\\sign.png");
 			sprintf(&cSignDataFilename[strlen(cSignDataFilename)], "%s", "\\sign.txt");
+			sprintf(&cSignPdfFilename[strlen(cSignPdfFilename)], "%s", "\\sign.pdf");
+
 			pSignFile = fopen(cSignPngFilename, "wb");
 			if (pSignFile == NULL)
 				iRet = ERRCODE_OPENFILE_FAILURE;
 			pSignDataFile = fopen(cSignDataFilename, "wb");
 			if (pSignDataFile == NULL)
 				iRet = ERRCODE_OPENFILE_FAILURE;
+			pSignPdfFile = fopen(cSignPdfFilename, "wb");
+			if (pSignPdfFile == NULL)
+				iRet = ERRCODE_OPENFILE_FAILURE;
 		}
 #endif
 		iSignDataLength = -1;
+		iSignPngLength = -1;
+		iSignPdfFileLength = -1;
 		while (!iRet)
 		{
 			iIndex = 0;
@@ -1314,12 +1325,32 @@ int __stdcall SCCBA_signPDFByType(int type, int iPortNo, char* pButtonInfo, unsi
 				iIndex += 6;
 				iCurrSegmentSize -= 6;
 			}
+			if (iSignPngLength < 0)
+			{
+				memset(signPngSize, 0, sizeof(signPngSize));
+				memcpy(signPngSize, &szBuffer[iIndex], 6);
+				iSignPngLength = atoi(signPngSize);
+				if (iSignDataLength < 0)
+					iSignPngLength = 0;
+				iIndex += 6;
+				iCurrSegmentSize -= 6;
+			}
+			if (iSignPdfFileLength < 0)
+			{
+				memset(signPdfSize, 0, sizeof(signPdfSize));
+				memcpy(signPdfSize, &szBuffer[iIndex], 6);
+				iSignPdfFileLength = atoi(signPdfSize);
+				if (iSignPdfFileLength < 0)
+					iSignPdfFileLength = 0;
+				iIndex += 6;
+				iCurrSegmentSize -= 6;
+			}
 			if (iReadSize = !(currSegmentSize + iIndex))
 			{
 				iRet = ERRCODE_RECEIVE_DATA_FAIL;
 				break;
 			}
-
+#pragma region 签名数据
 			if (iSignDataLength > 0)
 			{
 				if (iCurrSegmentSize < iSignDataLength)
@@ -1369,27 +1400,132 @@ int __stdcall SCCBA_signPDFByType(int type, int iPortNo, char* pButtonInfo, unsi
 					iSignDataLength = 0;
 				}
 			}
+#pragma endregion
 
-			if (iCurrSegmentSize)
+#pragma region 签名图片
+			if (iSignPngLength > 0&& iCurrSegmentSize)
 			{
+				if (iCurrSegmentSize < iSignPngLength)
+				{
+					if (iRetPicBufLen > iCurrSegmentSize)
+					{
+						memcpy(pPicData, &szBuffer[iIndex], iCurrSegmentSize);
+						iRetPicBufLen -= iCurrSegmentSize;
+						pPicData += iCurrSegmentSize;
+						*picdatalen += iCurrSegmentSize;
+					}
+					else if (iRetPicBufLen > 0)
+					{
+						memcpy(pPicData, &szBuffer[iIndex], iRetPicBufLen);
+						*picdatalen += iRetPicBufLen;
+						pPicData += iRetPicBufLen;
+						iRetPicBufLen = 0;
+					}
 #ifdef SIGNPDF_DEBUG
-				fwrite(&szBuffer[iIndex], iCurrSegmentSize, 1, pSignFile);
+					fwrite(&szBuffer[iIndex], iCurrSegmentSize, 1, pSignFile);
 #endif
-				if (iRetPicBufLen > iCurrSegmentSize)
-				{
-					memcpy(pPicData, &szBuffer[iIndex], iCurrSegmentSize);
-					iRetPicBufLen -= iCurrSegmentSize;
-					*picdatalen += iCurrSegmentSize;
-					pPicData += iCurrSegmentSize;
+					iSignPngLength -= iCurrSegmentSize;
+					iIndex += iSignPngLength;
+					iCurrSegmentSize = 0;
 				}
-				else if (iRetPicBufLen > 0)
+				else
 				{
-					memcpy(pSignData, &szBuffer[iIndex], iRetPicBufLen);
-					pPicData += iRetPicBufLen;
-					*picdatalen += iRetPicBufLen;
-					iRetPicBufLen = 0;
+					if (iRetPicBufLen > iSignPngLength)
+					{
+						memcpy(pSignData, &szBuffer[iIndex], iSignPngLength);
+						iRetPicBufLen -= iSignPngLength;
+						*picdatalen += iSignPngLength;
+						pPicData += iSignPngLength;
+					}
+					else if (iRetSignPdfBufLen > 0)
+					{
+						memcpy(pSignData, &szBuffer[iIndex], iRetPicBufLen);
+						*picdatalen += iRetPicBufLen;
+						pPicData += iRetPicBufLen;
+						iRetPicBufLen = 0;
+					}
+#ifdef SIGNPDF_DEBUG
+					fwrite(&szBuffer[iIndex], iSignPngLength, 1, pSignFile);
+#endif
+					iCurrSegmentSize -= iSignPngLength;
+					iIndex += iSignPngLength;
+					iSignPngLength = 0;
 				}
 			}
+#pragma endregion
+
+#pragma region 签名PDF
+			if (iSignPdfFileLength > 0&&iCurrSegmentSize)
+			{
+				if (iCurrSegmentSize < iSignPdfFileLength)
+				{
+					if (iRetSignPdfBufLen > iCurrSegmentSize)
+					{
+						memcpy(pSignPdfDate, &szBuffer[iIndex], iCurrSegmentSize);
+						iRetSignPdfBufLen -= iCurrSegmentSize;
+						pSignPdfDate += iCurrSegmentSize;
+						//*signPdfSize += iCurrSegmentSize;
+					}
+					else if (iRetSignPdfBufLen > 0)
+					{
+						memcpy(pSignPdfDate, &szBuffer[iIndex], iRetSignPdfBufLen);
+						//*picdatalen += iRetSignPdfBufLen;
+						pSignPdfDate += iRetSignPdfBufLen;
+						iRetSignPdfBufLen = 0;
+					}
+#ifdef SIGNPDF_DEBUG
+					fwrite(&szBuffer[iIndex], iCurrSegmentSize, 1, pSignPdfFile);
+#endif
+					iSignPdfFileLength -= iCurrSegmentSize;
+					iIndex += iSignPdfFileLength;
+					iCurrSegmentSize = 0;
+				}
+				else
+				{
+					if (iRetSignPdfBufLen > iSignPngLength)
+					{
+						memcpy(pSignData, &szBuffer[iIndex], iSignPdfFileLength);
+						iRetSignPdfBufLen -= iSignPdfFileLength;
+						//*signedLen += iSignPngLength;
+						pPicData += iSignPdfFileLength;
+					}
+					else if (iRetSignPdfBufLen > 0)
+					{
+						memcpy(pSignPdfDate, &szBuffer[iIndex], iRetSignPdfBufLen);
+						//*signedLen += iRetSignPdfBufLen;
+						pSignPdfDate += iRetSignPdfBufLen;
+						iRetSignPdfBufLen = 0;
+					}
+#ifdef SIGNPDF_DEBUG
+					fwrite(&szBuffer[iIndex], iSignPdfFileLength, 1, pSignPdfFile);
+#endif
+					iCurrSegmentSize -= iSignPdfFileLength;
+					iIndex += iSignPdfFileLength;
+					iSignPdfFileLength = 0;
+				}
+			}
+#pragma endregion
+
+// 			if (iCurrSegmentSize)
+// 			{
+// #ifdef SIGNPDF_DEBUG
+// 				fwrite(&szBuffer[iIndex], iCurrSegmentSize, 1, pSignFile);
+// #endif
+// 				if (iRetPicBufLen > iCurrSegmentSize)
+// 				{
+// 					memcpy(pPicData, &szBuffer[iIndex], iCurrSegmentSize);
+// 					iRetPicBufLen -= iCurrSegmentSize;
+// 					*picdatalen += iCurrSegmentSize;
+// 					pPicData += iCurrSegmentSize;
+// 				}
+// 				else if (iRetPicBufLen > 0)
+// 				{
+// 					memcpy(pSignData, &szBuffer[iIndex], iRetPicBufLen);
+// 					pPicData += iRetPicBufLen;
+// 					*picdatalen += iRetPicBufLen;
+// 					iRetPicBufLen = 0;
+// 				}
+// 			}
 			szBuffer[0] = 'R';
 			szBuffer[1] = 'R';
 			sprintf((char *)&szBuffer[2], "%04d", iCurrSegment - 1);
@@ -1406,6 +1542,8 @@ int __stdcall SCCBA_signPDFByType(int type, int iPortNo, char* pButtonInfo, unsi
 		fclose(pSignFile);
 	if (pSignDataFile)
 		fclose(pSignDataFile);
+	if (pSignPdfFile)
+		fclose(pSignPdfFile);
 #endif
 	comm_close();
 	if (pUtf8BtnInfo)
@@ -1422,7 +1560,7 @@ int __stdcall SCCBA_signPDFByType(int type, int iPortNo, char* pButtonInfo, unsi
 			signeddata[iRetSignDataBufSize - 1] = 0;
 		else
 			signeddata[*signedLen] = 0;
-	}
+		}
 #if 0 //def SIGNPDF_DEBUG
 	{
 		FILE *pDebugFile;
@@ -1450,7 +1588,8 @@ int __stdcall SCCBA_signPDFByType(int type, int iPortNo, char* pButtonInfo, unsi
 	}
 #endif
 	return iRet;
-}
+
+	}
 //推送pdf签字功能
 BANKGWQ_API int __stdcall SCCBA_signPDF(int iPortNo, unsigned char *pdfdata, int pdfdatalen, int page, int x, int y, int w, int h, int iTimeout, char *picdata, int *picdatalen, char *signeddata, int *signedLen)
 {
@@ -3004,7 +3143,7 @@ BANKGWQ_API int __stdcall CheckTellerPhoto(int iPortNo, char extendPort, int iBa
 	comm_close();
 	if (!iRet)
 	{
-		if ((szBuffer[0] == 'E') && (szBuffer[1] == 'F') && szBuffer[2] == '0'&&szBuffer[3] == 0)
+		if ((szBuffer[0] == 'E') && (szBuffer[1] == 'F') && szBuffer[2] == '0'&&szBuffer[3] == '0')
 		{
 			return getErrorInfo(0, psErrInfo);
 		}
@@ -3085,6 +3224,7 @@ BANKGWQ_API int __stdcall FingerEnable(int iPortNo, char extendPort, int iBaudRa
 #pragma region 6.1.3.2	获取指纹特征值
 BANKGWQ_API int __stdcall FPGetFeature(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, char * psFeature, char * psErrInfo)
 {
+	SCCBA_PlayVoice(iPortNo, "请按指纹");
 	unsigned char psFeatureInfo[1024 * 64] = { 0 };
 	unsigned char pngdata[1024 * 64] = { 0 };
 	int Fingerlength = 0;
@@ -3106,13 +3246,20 @@ BANKGWQ_API int __stdcall FPGetFeature(int iPortNo, char extendPort, int iBaudRa
 #pragma region 6.1.3.3	获取指纹模板
 BANKGWQ_API int __stdcall FPGetTemplate(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, char * psTemplate, int iLength, char * psErrInfo)
 {
+	SCCBA_PlayVoice(iPortNo, "请按指纹");
 	unsigned char psFeatureInfo[1024] = { 0 };
 	unsigned char psFeatureInfo2[1024] = { 0 };
 	//unsigned char pngdata[1024 * 64] = { 0 };
 	int Fingerlength = 0;
 	int Fingerlength2 = 0;
+	char bmppath[MAX_PATH] = { 0 };
+	string bmpfile;
+	getTempPath(bmppath);
+	bmpfile = bmppath;
+	bmpfile += "tmp.bmp";
+	strcpy(bmppath, bmpfile.c_str());
 
-	int iret = TcGetFingerTemplate(0, NULL, psFeatureInfo, &Fingerlength, iTimeOut);
+	int iret = TcGetFingerTemplate(0, bmppath, psFeatureInfo, &Fingerlength, iTimeOut);
 	if (iret != 0)
 	{
 		return getErrorInfo(-1, psErrInfo);
@@ -3138,26 +3285,26 @@ BANKGWQ_API int __stdcall FPGetTemplate(int iPortNo, char extendPort, int iBaudR
 #pragma region 6.1.3.4	获取指纹图像
 BANKGWQ_API int __stdcall FPGetImgData(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, int iIndex, char * psImgData, char * psErrInfo)
 {
+	char bmpdata[31478] = { 0 };
 	char bmppath[MAX_PATH] = { 0 };
 	string bmpfile;
 	getTempPath(bmppath);
 	bmpfile = bmppath;
 	bmpfile += "tmp.bmp";
-	memset(bmppath, 0, MAX_PATH);
 	strcpy(bmppath, bmpfile.c_str());
-	unsigned char psFeatureInfo[1024 * 64] = { 0 };
-	unsigned char pngdata[1024 * 64] = { 0 };
-	char bmpdata[31478] = { 0 };
-	int Fingerlength = 0;
-	if (psImgData == NULL)
-	{
-		return getErrorInfo(-1, psErrInfo);
-	}
-	int iret = TcGetFingerFeature(0, bmppath, psFeatureInfo, &Fingerlength, iTimeOut);
-	if (iret != 0)
-	{
-		return getErrorInfo(-1, psErrInfo);
-	}
+	// 	unsigned char psFeatureInfo[1024 * 64] = { 0 };
+	// 	unsigned char pngdata[1024 * 64] = { 0 };
+
+	// 	int Fingerlength = 0;
+	// 	if (psImgData == NULL)
+	// 	{
+	// 		return getErrorInfo(-1, psErrInfo);
+	// 	}
+	// 	int iret = TcGetFingerFeature(0, bmppath, psFeatureInfo, &Fingerlength, iTimeOut);
+	// 	if (iret != 0)
+	// 	{
+	// 		return getErrorInfo(-1, psErrInfo);
+	// 	}
 	ifstream in(bmppath, ios::binary);
 	if (!in.is_open())
 	{
@@ -3262,7 +3409,7 @@ BANKGWQ_API int __stdcall ShowPDF(int iPortNo, char extendPort, int iBaudRate, i
 	pFile.read(pdfdata, iFileSize);
 	pFile.close();
 	int iret = SCCBA_signPDF(iPortNo, (unsigned char *)pdfdata, iFileSize, page, x, y, w, h, iTimeOut, picdata, &piclen, signData, (int *)signDataLen);
-
+	delete[]pdfdata;
 	if (iret != 0)
 	{
 		sprintf(psErrInfo, "%d|%s", iret, "签名失败");
@@ -3271,7 +3418,7 @@ BANKGWQ_API int __stdcall ShowPDF(int iPortNo, char extendPort, int iBaudRate, i
 
 	GetCurrentDirectory(MAX_PATH, cSignPngFilename);
 	sprintf(&cSignPngFilename[strlen(cSignPngFilename)], "%s", "\\sign.png");
-	CImage image ;
+	CImage image;
 	image.Load(cSignPngFilename);
 	image.Save(signImgPath);//保存BMP
 
@@ -3282,6 +3429,25 @@ BANKGWQ_API int __stdcall ShowPDF(int iPortNo, char extendPort, int iBaudRate, i
 // 	}
 // 	picFile.write(picdata, iFileSize);
 // 	picFile.close();
+	char exe_path[MAX_PATH] = { 0 };
+	char cSignPdfFilename[MAX_PATH] = { 0 };
+	GetCurrentDirectory(MAX_PATH, exe_path);
+	memcpy(cSignPdfFilename, exe_path, strlen(exe_path));
+	sprintf(&cSignPdfFilename[strlen(cSignPdfFilename)], "%s", "\\sign.pdf");
+
+	ifstream inPdfFile(cSignPdfFilename, ios::binary);
+	if (!inPdfFile.is_open())
+	{
+		return getErrorInfo(-1, psErrInfo);
+	}
+	inPdfFile.seekg(0, ios::end);
+	iFileSize = inPdfFile.tellg();
+	
+	pdfdata = new char[iFileSize];
+	inPdfFile.clear();
+	inPdfFile.seekg(0, ios::beg);
+	inPdfFile.read(pdfdata,iFileSize);
+
 	ofstream saPdfFile(signPdfPath, ios::binary);//保存PDF
 	if (!saPdfFile.is_open())
 	{
@@ -3382,7 +3548,7 @@ int  DownOneFile(char* path, char * &psErrInfo, int &ret, int iPortNo, int iBaud
 /****
 批量下传图片及视频文件
 **/
-BANKGWQ_API int __stdcall DownloadFiles(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, char* path, int filetype, char * psErrInfo) {
+BANKGWQ_API int __stdcall DownloadFiles(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, char* path, int filetype, char* tellerPhotoName, char * psErrInfo) {
 
 	unsigned char  sendbuff[4096] = { 0 };
 	unsigned char  retbuff[4096] = { 0 };
@@ -3399,9 +3565,9 @@ BANKGWQ_API int __stdcall DownloadFiles(int iPortNo, char extendPort, int iBaudR
 		break;
 	case 2:
 		type = 1;
-		ret = DownOneFile(iPortNo, path, filetype);
-		return ret;
-		break;
+		ret = DownOneFile(iPortNo, path, tellerPhotoName, type);
+		return getDeviceErrInfo(ret, psErrInfo);
+
 	case 3:
 		type = 3;
 		break;
@@ -3414,14 +3580,16 @@ BANKGWQ_API int __stdcall DownloadFiles(int iPortNo, char extendPort, int iBaudR
 
 		vector<CString> filearry;
 		getFolderDayFile(path, filearry, 0);
-		for each (CString filename in filearry)
+		for each (CString file_path in filearry)
 		{
-			ret = DownOneFile(iPortNo, filename.GetBuffer(), filetype);
+			char * file_name = PathFindFileName(file_path);
+			ret = DownOneFile(iPortNo, file_path.GetBuffer(), file_name, type);
 		}
 	}
 	else
 	{
-		ret = DownOneFile(iPortNo, path, filetype);
+		char * file_name = PathFindFileName(path);
+		ret = DownOneFile(iPortNo, path, file_name, type);
 	}
 
 
@@ -3429,7 +3597,7 @@ BANKGWQ_API int __stdcall DownloadFiles(int iPortNo, char extendPort, int iBaudR
 	//return DownOneFile(path, psErrInfo, ret, iPortNo, iBaudRate, sendbuff, retbuff, retlen, iTimeOut);
 
 
-	return ret;
+	return getDeviceErrInfo(ret, psErrInfo);
 }
 /****
 6.1.2.5设置全部图片播放
@@ -3454,7 +3622,7 @@ BANKGWQ_API int __stdcall	SetTabletPictruePlay(int iPortNo, char extendPort, int
 6.1.2.7清除交互屏存储
 **/
 BANKGWQ_API int __stdcall DeleteFiles(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, int filetype, char * psErrInfo) {
-	int iRet, iFilenameLen, iBufLen,iIndex;
+	int iRet, iFilenameLen, iBufLen, iIndex;
 	char szBuffer[FRAME_MAX_SIZE];
 	unsigned char *pUtf8Filename;
 
@@ -3496,7 +3664,7 @@ BANKGWQ_API int __stdcall DeleteFiles(int iPortNo, char extendPort, int iBaudRat
 	comm_close();
 
 
-	return getDeviceErrInfo(iRet,psErrInfo);
+	return getDeviceErrInfo(iRet, psErrInfo);
 }
 
 #endif
