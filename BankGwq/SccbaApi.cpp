@@ -19,6 +19,7 @@ CString ToVoiceStr(int VoiceType);
 void getFolderDayFile(CString pathStr, vector<CString>& arrStrFile, int layer);// 遍历文件夹  获取文件名
 int getErrorInfo(int errCode, char * errInfo);
 int getDeviceErrInfo(int errCode, char * errInfo);
+int TransparentImage(CImage &cimage);
 CString ToVoiceStr(int VoiceType)
 {
 	CString voicestr = "";
@@ -3412,15 +3413,10 @@ BANKGWQ_API int __stdcall ShowPDF(int iPortNo, char extendPort, int iBaudRate, i
 	delete[]pdfdata;
 	if (iret != 0)
 	{
-		sprintf(psErrInfo, "%d|%s", iret, "签名失败");
-		return iret;
+		return getDeviceErrInfo(iret, psErrInfo);
 	}
 
-	GetCurrentDirectory(MAX_PATH, cSignPngFilename);
-	sprintf(&cSignPngFilename[strlen(cSignPngFilename)], "%s", "\\sign.png");
-	CImage image;
-	image.Load(cSignPngFilename);
-	image.Save(signImgPath);//保存BMP
+	
 
 // 	ofstream picFile(signImgPath, ios::binary);//保存BMP
 // 	if (!picFile.is_open())
@@ -3432,8 +3428,19 @@ BANKGWQ_API int __stdcall ShowPDF(int iPortNo, char extendPort, int iBaudRate, i
 	char exe_path[MAX_PATH] = { 0 };
 	char cSignPdfFilename[MAX_PATH] = { 0 };
 	GetCurrentDirectory(MAX_PATH, exe_path);
+
+	memcpy(cSignPngFilename, exe_path, strlen(exe_path));
+	sprintf(&cSignPngFilename[strlen(cSignPngFilename)], "%s", "\\sign.png");
+
 	memcpy(cSignPdfFilename, exe_path, strlen(exe_path));
 	sprintf(&cSignPdfFilename[strlen(cSignPdfFilename)], "%s", "\\sign.pdf");
+
+
+	CImage image;
+	image.Load(cSignPngFilename);
+	TransparentImage(image);
+	image.Save(signImgPath);//保存BMP
+
 
 	ifstream inPdfFile(cSignPdfFilename, ios::binary);
 	if (!inPdfFile.is_open())
@@ -3444,10 +3451,11 @@ BANKGWQ_API int __stdcall ShowPDF(int iPortNo, char extendPort, int iBaudRate, i
 	iFileSize = inPdfFile.tellg();
 	
 	pdfdata = new char[iFileSize];
+	memset(pdfdata, 0, iFileSize);
 	inPdfFile.clear();
 	inPdfFile.seekg(0, ios::beg);
 	inPdfFile.read(pdfdata,iFileSize);
-
+	inPdfFile.close();
 	ofstream saPdfFile(signPdfPath, ios::binary);//保存PDF
 	if (!saPdfFile.is_open())
 	{
@@ -3457,7 +3465,7 @@ BANKGWQ_API int __stdcall ShowPDF(int iPortNo, char extendPort, int iBaudRate, i
 	saPdfFile.close();
 	delete[]picdata;
 	delete[]pdfdata;
-	return iret;
+	return getDeviceErrInfo(iret,psErrInfo);
 }
 
 int  DownOneFile(char* path, char * &psErrInfo, int &ret, int iPortNo, int iBaudRate, unsigned char * sendbuff, unsigned char * retbuff, int retlen, int iTimeOut)
@@ -3668,3 +3676,25 @@ BANKGWQ_API int __stdcall DeleteFiles(int iPortNo, char extendPort, int iBaudRat
 }
 
 #endif
+
+int  TransparentImage(CImage &Image)
+{
+	
+	int nPitch = Image.GetPitch(), nBPP = Image.GetBPP();
+	LPBYTE lpBits = reinterpret_cast<LPBYTE>(Image.GetBits());
+
+	for (int yPos = 0; yPos < Image.GetHeight(); yPos++)
+	{
+		LPBYTE lpBytes = lpBits + (yPos * nPitch);
+		PDWORD lpLines = reinterpret_cast<PDWORD>(lpBytes);
+		for (int xPos = 0; xPos < Image.GetWidth(); xPos++)
+		{
+			if (nBPP == 32 && lpLines[xPos] >> 24 != 0x000000FF)
+			{
+				lpLines[xPos] |= 0xFFFFFFFF;
+			}
+		}
+	}
+
+	return 0;
+}
