@@ -21,7 +21,7 @@ BANKGWQ_API int __stdcall SCCBA_StartElectronicCard(int iPortNo, /*char extendPo
 BANKGWQ_API int __stdcall SCCBA_ReadDeviceId(int iPortNo, char *pDeviceId, int iSize);
 
 //05. Evaluate
-BANKGWQ_API int __stdcall SCCBA_StartEvaluate(int iPortNo, char * tellerID, char * headFile, char *tellerName, char *strOperData, char *strDispData, char *strVoice, int strDispTimeout, int strTimeout, char *iResult);
+BANKGWQ_API int __stdcall SCCBA_StartEvaluate(int iPortNo, char * tellerID, char * headFile, char *tellerName, char *strOperData, char *strDispData, char *strVoice, int strDispTimeout, int strTimeout, char *iResult, int startleve);
 
 //06. Security Keyboard
 BANKGWQ_API int __stdcall SCCBA_ReadPin(int iPortNo, int iEncryType, int iTimes, int iLength, int iTimeout, char *strVoice, char * strInfo, int EndType, char *iResult);
