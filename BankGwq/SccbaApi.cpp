@@ -859,7 +859,7 @@ BANKGWQ_API int __stdcall SCCBA_StartEvaluate(int iPortNo, char * tellerID, char
 
 //#define READPIN_DEBUG
 //6. Security Keyboard  获取密码
-BANKGWQ_API int __stdcall SCCBA_ReadPin(int iPortNo, int iEncryType, int iTimes, int iLength, int iTimeout, char *strVoice, char * strInfo, int EndType, char *iResult)
+BANKGWQ_API int __stdcall SCCBA_ReadPin(int iPortNo, int iEncryType, int iTimes, int iLength, int iTimeout, char *strVoice, char * strInfo, int EndType, char *iResult, const char * AccNo)
 {
 	int iRet, iIndex, iVoiceLen, iDispLen, iReadSize;
 	char *pInfo;
@@ -973,7 +973,6 @@ BANKGWQ_API int __stdcall SCCBA_InitPinPad(int iPortNo)
 {
 	int iRet, iLen;
 	unsigned char szBuffer[FRAME_MAX_SIZE];
-
 	iRet = comm_open(iPortNo, iPortNo, 9600);
 	if (!iRet)
 	{
@@ -981,19 +980,24 @@ BANKGWQ_API int __stdcall SCCBA_InitPinPad(int iPortNo)
 		szBuffer[1] = 'P';
 		iLen = sizeof(szBuffer);
 		iRet = comm_frame_write(szBuffer, 2, szBuffer, &iLen, 5000);
-		comm_close();
+
 	}
+	comm_close();
 	return iRet;
 }
 //更新主秘钥
-BANKGWQ_API int __stdcall SCCBA_UpdateMKey(int iPortNo, int ZmkIndex, int ZmkLength, char *Zmk, char* CheckValue)
+BANKGWQ_API int __stdcall SCCBA_UpdateMKey(int iPortNo, int ZmkIndex, int ZmkLength, char *Zmk, const char* CheckValue, char *CheckValue2)
 {
 	int iRet, iIndex, iLen;
-	unsigned char szBuffer[FRAME_MAX_SIZE];
-
+	unsigned char szBuffer[FRAME_MAX_SIZE] = { 0 };
 	iRet = comm_open(iPortNo, iPortNo, 9600);
 	if (iRet)
+	{
+		comm_close();
 		return iRet;
+
+	}
+
 
 	iIndex = 0;
 	szBuffer[iIndex++] = 'U';
@@ -1005,17 +1009,30 @@ BANKGWQ_API int __stdcall SCCBA_UpdateMKey(int iPortNo, int ZmkIndex, int ZmkLen
 	iIndex += 2;
 	memcpy((char *)&szBuffer[iIndex], Zmk, strlen(Zmk));
 	iIndex += strlen(Zmk);
+	if (CheckValue == NULL)
+	{
+		sprintf((char *)&szBuffer[iIndex], "%02d", 0);
+		iIndex += 2;
+	}
+	else
+	{
+		sprintf((char *)&szBuffer[iIndex], "%02d", strlen(CheckValue));
+		iIndex += 2;
+		memcpy((char *)&szBuffer[iIndex], CheckValue, strlen(CheckValue));
+		iIndex += strlen(CheckValue);
+	}
 
-	sprintf((char *)&szBuffer[iIndex], "%02d", strlen(CheckValue));
-	iIndex += 2;
-	memcpy((char *)&szBuffer[iIndex], CheckValue, strlen(CheckValue));
-	iIndex += strlen(CheckValue);
 
 	iLen = sizeof(szBuffer);
 	iRet = comm_frame_write(szBuffer, iIndex, szBuffer, &iLen, 5000);
 	comm_close();
 	if (iRet == 0 && szBuffer[0] == 'U'&&szBuffer[1] == 'M'&&szBuffer[2] == '0'&&szBuffer[3] == '0')
 	{
+		if (CheckValue2 != NULL)
+		{
+			memcpy(CheckValue2, szBuffer + 4, 8);
+		}
+
 		return 0;
 	}
 	else
@@ -1025,14 +1042,18 @@ BANKGWQ_API int __stdcall SCCBA_UpdateMKey(int iPortNo, int ZmkIndex, int ZmkLen
 
 }
 //下载工作秘钥
-BANKGWQ_API int __stdcall SCCBA_DownLoadWKey(int iPortNo, int MKeyIndex, int WKeyIndex, int WKeyLength, char *Key, char*CheckValue)
+BANKGWQ_API int __stdcall SCCBA_DownLoadWKey(int iPortNo, int MKeyIndex, int WKeyIndex, int WKeyLength, char *Key, const char*CheckValue, char *CheckValue2)
 {
 	int iRet, iIndex, iLen;
 	unsigned char szBuffer[FRAME_MAX_SIZE];
 
 	iRet = comm_open(iPortNo, iPortNo, 9600);
 	if (iRet)
+	{
+		comm_close();
 		return iRet;
+	}
+
 
 	iIndex = 0;
 	szBuffer[iIndex++] = 'U';
@@ -1056,11 +1077,24 @@ BANKGWQ_API int __stdcall SCCBA_DownLoadWKey(int iPortNo, int MKeyIndex, int WKe
 	comm_close();
 	if (iRet == 0 && szBuffer[0] == 'U'&&szBuffer[1] == 'W'&&szBuffer[2] == '0'&&szBuffer[3] == '0')
 	{
+		if (CheckValue2 != NULL)
+		{
+			memcpy(CheckValue2, szBuffer + 4, 8);
+		}
 		return 0;
 	}
-	else
+	else if (szBuffer[2] == '-'&&szBuffer[3] == '1'&&szBuffer[4] == '5')
 	{
+		if (CheckValue2 != NULL)
+		{
+			memcpy(CheckValue2, szBuffer + 4, 8);
+		}
 		return -15;
+	}
+	else
+
+	{
+		return -1;
 	}
 
 }
@@ -3039,14 +3073,25 @@ psErrInfo：输出信息 “错误代码|错误信息”，最大长度32字节
 
 //初始化主秘钥明文
 BANKGWQ_API int __stdcall  LoadClearZMK(int  iPortNo, char extendPort, int iBaudRate, int iTimeOut, int ZmkIndex, int ZmkLength, char *Zmk, char *CheckValues, char * psErrInfo) {
+
 	ZmkLength = getKeyLength(ZmkLength);
-	int zmklen = strlen(Zmk);
+	int klen = strlen(Zmk);
+	int kx = klen % 2;
+	if (kx != 0)
+	{
+		return getErrorInfo(-10, psErrInfo);
+	}
+	int zmklen = klen / 2;
 	if (ZmkLength != zmklen)
 	{
 		return getErrorInfo(-10, psErrInfo);
 	}
-	int iRet = SettingEncry(iPortNo, 4);
-	iRet = SCCBA_UpdateMKey(iPortNo, LOADZMKINDEXPLAIN, ZmkLength, Zmk, CheckValues);
+
+
+	int iRet = SettingEncry(iPortNo, 3);
+	iRet = SCCBA_UpdateMKey(iPortNo, LOADZMKINDEXPLAIN, ZmkLength, (char *)Zmk, NULL, CheckValues);
+
+	//delete[]_checkvalue1;
 	return getErrorInfo(iRet, psErrInfo);
 }
 #pragma endregion
@@ -3057,12 +3102,25 @@ BANKGWQ_API int __stdcall  LoadClearZMK(int  iPortNo, char extendPort, int iBaud
 */
 BANKGWQ_API int __stdcall  LoadZMK(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, int ZmkIndex, int ZmkLength, char *Zmk, char *CheckValue1, char *CheckValue2, char * psErrInfo) {
 	ZmkLength = getKeyLength(ZmkLength);
-	int zmklen = strlen(Zmk);
-	if (ZmkLength != zmklen)
+	int klen = strlen(Zmk);
+	int clen = strlen(CheckValue1);
+	int kx = klen % 2;
+	int cx = clen % 2;
+	if (kx != 0 || cx != 0)
 	{
 		return getErrorInfo(-10, psErrInfo);
 	}
-	int iRet = SCCBA_UpdateMKey(iPortNo, LOADZMKINDEXCLPHER, ZmkLength, Zmk, CheckValue1);
+	int zmklen = klen / 2;
+	int checkvalue1len = clen / 2;
+	if (ZmkLength != zmklen || checkvalue1len != 8)
+	{
+		return getErrorInfo(-10, psErrInfo);
+	}
+
+
+	int iRet = SettingEncry(iPortNo, 4);
+	iRet = SCCBA_UpdateMKey(iPortNo, LOADZMKINDEXCLPHER, ZmkLength, Zmk, NULL, CheckValue1);
+
 	return getErrorInfo(iRet, psErrInfo);
 }
 #pragma endregion
@@ -3074,12 +3132,24 @@ BANKGWQ_API int __stdcall  LoadZMK(int iPortNo, char extendPort, int iBaudRate, 
 
 **/
 BANKGWQ_API int __stdcall  LoadWorkKey(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, int KeyIndex, int KeyType, int KeyLength, char *Key, char *CheckValue1, char *CheckValue2, char * psErrInfo) {
+
 	KeyLength = getKeyLength(KeyLength);
-	int zpklen = strlen(Key);
-	if (KeyLength != zpklen)
+	int klen = strlen(Key);
+	int clen = strlen(CheckValue1);
+	int kx = klen % 2;
+	int cx = clen % 2;
+	if (kx != 0 || cx != 0)
 	{
 		return getErrorInfo(-10, psErrInfo);
 	}
+	int zpklen = klen / 2;
+	int checkvalue1len = clen / 2;
+	if (KeyLength != zpklen || checkvalue1len != 8)
+	{
+		return getErrorInfo(-10, psErrInfo);
+	}
+
+
 	if (KeyType == 1)
 	{
 		KeyIndex = WORKKEYZPK;
@@ -3088,7 +3158,9 @@ BANKGWQ_API int __stdcall  LoadWorkKey(int iPortNo, char extendPort, int iBaudRa
 	{
 		KeyIndex = WORKKEYZAK;
 	}
-	int iRet = SCCBA_DownLoadWKey(iPortNo, LOADZMKINDEXCLPHER, KeyIndex, KeyLength, Key, CheckValue1);
+	int iRet = SettingEncry(iPortNo, 4);
+	iRet = SCCBA_DownLoadWKey(iPortNo, LOADZMKINDEXCLPHER, KeyIndex, KeyLength, Key, CheckValue1, CheckValue2);
+
 	return getDeviceErrInfo(iRet, psErrInfo);
 }
 #pragma endregion
@@ -3150,7 +3222,7 @@ BANKGWQ_API int __stdcall GetPlainText(int iPortNo, char extendPort, int iBaudRa
 {
 	CString voicestr = ToVoiceStr(VoiceType);
 
-	int ret = SCCBA_ReadPin(iPortNo, 1, 1, *PlainTextLength, iTimeOut, voicestr.GetBuffer(), psErrInfo, EndType, PLainText);
+	int ret = SCCBA_ReadPin(iPortNo, 1, 1, *PlainTextLength, iTimeOut, voicestr.GetBuffer(), psErrInfo, EndType, PLainText,NULL);
 	return getDeviceErrInfo(ret, psErrInfo);
 }
 #pragma endregion
@@ -3162,9 +3234,9 @@ BANKGWQ_API int __stdcall GetPlainText(int iPortNo, char extendPort, int iBaudRa
 
 BANKGWQ_API int __stdcall  GetPin(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, int KeyIndex, char *AccNo, int VoiceType, int EndType, int *PinLength, char *PinCrypt, char * psErrInfo) {
 	int iTimes = 1;
-	char*strInfo = "";
+	//char*strInfo = "";
 	CString voicestr = ToVoiceStr(VoiceType);
-	int iRet = SCCBA_ReadPin(iPortNo, 5, iTimes, *PinLength, iTimeOut, voicestr.GetBuffer(), strInfo, EndType, PinCrypt);
+	int iRet = SCCBA_ReadPin(iPortNo, 5, iTimes, *PinLength, iTimeOut, voicestr.GetBuffer(), "", EndType, PinCrypt,AccNo);
 	return getDeviceErrInfo(iRet, psErrInfo);
 }
 #pragma endregion
@@ -3174,7 +3246,8 @@ BANKGWQ_API int __stdcall  GetPin(int iPortNo, char extendPort, int iBaudRate, i
 6.1.1.9初始化密码键盘
 **/
 BANKGWQ_API int __stdcall InitPinPad(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, char * psErrInfo) {
-	int iRet = SCCBA_InitPinPad(iPortNo);
+	int iRet = SettingEncry(iPortNo, 3);
+	iRet = SCCBA_InitPinPad(iPortNo);
 	return getDeviceErrInfo(iRet, psErrInfo);
 
 }
@@ -3214,7 +3287,11 @@ int SettingEncry(int iPortNo, int EncryType)
 
 	iRet = comm_open(iPortNo, iPortNo, 9600);
 	if (iRet)
+	{
+		comm_close();
 		return iRet;
+	}
+
 
 	iIndex = 0;
 	memset(szBuffer, 0, sizeof(szBuffer));
@@ -3225,6 +3302,7 @@ int SettingEncry(int iPortNo, int EncryType)
 
 	iReadSize = sizeof(szBuffer);
 	iRet = comm_frame_write(szBuffer, iIndex, szBuffer, &iReadSize, 5000);
+	comm_close();
 	return iRet;
 }
 #pragma endregion
@@ -3816,11 +3894,11 @@ int getKeyLength(int ZmkLength)
 	switch (ZmkLength)
 	{
 	case 1:
-		return 16;
+		return 8;
 	case 2:
-		return 32;
+		return 16;
 	case 3:
-		return 48;
+		return 24;
 	default:
 		return 0;
 	}
