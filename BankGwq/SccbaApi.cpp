@@ -3161,7 +3161,7 @@ BANKGWQ_API int __stdcall  LoadWorkKey(int iPortNo, char extendPort, int iBaudRa
 	}
 	int zpklen = klen / 2;
 	int checkvalue1len = clen / 2;
-	if (KeyLength != zpklen || checkvalue1len != 8)
+	if (KeyLength != zpklen || checkvalue1len <8)
 	{
 		return getErrorInfo(-10, psErrInfo);
 	}
@@ -3222,7 +3222,7 @@ BANKGWQ_API int __stdcall  CheckKey(int iPortNo, char extendPort, int iBaudRate,
 	iLen = sizeof(szBuffer);
 	iRet = comm_frame_write(szBuffer, iIndex, szBuffer, &iLen, iTimeOut * 1000);
 	comm_close();
-	if (iRet == 0 && szBuffer[0] == 'C'&&szBuffer[1] == 'K'&&szBuffer[2] == '0'&&szBuffer[3] == '0')
+	if (iRet == 0 && szBuffer[0] == 'C'&&szBuffer[1] == 'Y'&&szBuffer[2] == '0'&&szBuffer[3] == '0')
 	{
 		if (CheckValue != NULL)
 		{
