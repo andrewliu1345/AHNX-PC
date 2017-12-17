@@ -934,6 +934,20 @@ BANKGWQ_API int __stdcall SCCBA_ReadPin(int iPortNo, int iEncryType, int iTimes,
 	iIndex += iDispLen;
 
 	sprintf((char *)&szBuffer[iIndex++], "%1d", EndType);              //EndType
+	if (AccNo == NULL)
+	{
+		sprintf((char *)&szBuffer[iIndex], "%02d", 0);
+		iIndex += 2;
+	}
+	else
+	{
+		int iAccNoLen = strlen(AccNo);
+		sprintf((char *)&szBuffer[iIndex], "%02d", iAccNoLen);
+		iIndex += 2;
+		memcpy(&szBuffer[iIndex], AccNo, iAccNoLen);
+		iIndex += iAccNoLen;
+	}
+
 
 	iReadSize = sizeof(szBuffer);
 	iRet = comm_frame_write(szBuffer, iIndex, szBuffer, &iReadSize, 5000);
@@ -1030,7 +1044,8 @@ BANKGWQ_API int __stdcall SCCBA_UpdateMKey(int iPortNo, int ZmkIndex, int ZmkLen
 	{
 		if (CheckValue2 != NULL)
 		{
-			memcpy(CheckValue2, szBuffer + 4, 8);
+			int len = szBuffer[4];
+			memcpy(CheckValue2, szBuffer + 5, len);
 		}
 
 		return 0;
@@ -1079,7 +1094,8 @@ BANKGWQ_API int __stdcall SCCBA_DownLoadWKey(int iPortNo, int MKeyIndex, int WKe
 	{
 		if (CheckValue2 != NULL)
 		{
-			memcpy(CheckValue2, szBuffer + 4, 8);
+			int len = szBuffer[4];
+			memcpy(CheckValue2, szBuffer + 5, len);
 		}
 		return 0;
 	}
@@ -1087,7 +1103,8 @@ BANKGWQ_API int __stdcall SCCBA_DownLoadWKey(int iPortNo, int MKeyIndex, int WKe
 	{
 		if (CheckValue2 != NULL)
 		{
-			memcpy(CheckValue2, szBuffer + 4, 8);
+			int len = szBuffer[5];
+			memcpy(CheckValue2, szBuffer + 6, len);
 		}
 		return -15;
 	}
@@ -3195,7 +3212,7 @@ BANKGWQ_API int __stdcall  CheckKey(int iPortNo, char extendPort, int iBaudRate,
 	szBuffer[iIndex++] = 'Y';
 	szBuffer[iIndex++] = (unsigned char)KeyIndex;
 	szBuffer[iIndex++] = (unsigned char)KeyType;
-	// 	szBuffer[iIndex++] = (unsigned char)KeyLength;
+	szBuffer[iIndex++] = (unsigned char)KeyLength;
 	// 
 	// 	sprintf((char *)&szBuffer[iIndex], "%02d", strlen(CheckValue));
 	// 	iIndex += 2;
@@ -3207,6 +3224,11 @@ BANKGWQ_API int __stdcall  CheckKey(int iPortNo, char extendPort, int iBaudRate,
 	comm_close();
 	if (iRet == 0 && szBuffer[0] == 'C'&&szBuffer[1] == 'K'&&szBuffer[2] == '0'&&szBuffer[3] == '0')
 	{
+		if (CheckValue != NULL)
+		{
+			int len = szBuffer[4];
+			memcpy(CheckValue, szBuffer + 5, len);
+		}
 		return 0;
 	}
 	else
@@ -3222,7 +3244,7 @@ BANKGWQ_API int __stdcall GetPlainText(int iPortNo, char extendPort, int iBaudRa
 {
 	CString voicestr = ToVoiceStr(VoiceType);
 
-	int ret = SCCBA_ReadPin(iPortNo, 1, 1, *PlainTextLength, iTimeOut, voicestr.GetBuffer(), psErrInfo, EndType, PLainText,NULL);
+	int ret = SCCBA_ReadPin(iPortNo, 1, 0, *PlainTextLength, iTimeOut, voicestr.GetBuffer(), psErrInfo, EndType, PLainText, NULL);
 	return getDeviceErrInfo(ret, psErrInfo);
 }
 #pragma endregion
@@ -3236,7 +3258,7 @@ BANKGWQ_API int __stdcall  GetPin(int iPortNo, char extendPort, int iBaudRate, i
 	int iTimes = 1;
 	//char*strInfo = "";
 	CString voicestr = ToVoiceStr(VoiceType);
-	int iRet = SCCBA_ReadPin(iPortNo, 5, iTimes, *PinLength, iTimeOut, voicestr.GetBuffer(), "", EndType, PinCrypt,AccNo);
+	int iRet = SCCBA_ReadPin(iPortNo, 5, iTimes, *PinLength, iTimeOut, voicestr.GetBuffer(), "", EndType, PinCrypt, AccNo);
 	return getDeviceErrInfo(iRet, psErrInfo);
 }
 #pragma endregion
