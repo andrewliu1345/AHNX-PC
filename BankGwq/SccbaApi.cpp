@@ -3106,6 +3106,7 @@ BANKGWQ_API int __stdcall  LoadClearZMK(int  iPortNo, char extendPort, int iBaud
 
 
 	int iRet = SettingEncry(iPortNo, 3);
+	iRet = SCCBA_InitPinPad(iPortNo);
 	iRet = SCCBA_UpdateMKey(iPortNo, LOADZMKINDEXPLAIN, ZmkLength, (char *)Zmk, NULL, CheckValues);
 
 	//delete[]_checkvalue1;
@@ -3161,7 +3162,7 @@ BANKGWQ_API int __stdcall  LoadWorkKey(int iPortNo, char extendPort, int iBaudRa
 	}
 	int zpklen = klen / 2;
 	int checkvalue1len = clen / 2;
-	if (KeyLength != zpklen || checkvalue1len <8)
+	if (KeyLength != zpklen || checkvalue1len < 8)
 	{
 		return getErrorInfo(-10, psErrInfo);
 	}
