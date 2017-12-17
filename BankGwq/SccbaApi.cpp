@@ -3129,14 +3129,14 @@ BANKGWQ_API int __stdcall  LoadZMK(int iPortNo, char extendPort, int iBaudRate, 
 	}
 	int zmklen = klen / 2;
 	int checkvalue1len = clen / 2;
-	if (ZmkLength != zmklen || checkvalue1len != 8)
+	if (ZmkLength != zmklen &&clen < 8)
 	{
 		return getErrorInfo(-10, psErrInfo);
 	}
 
 
 	int iRet = SettingEncry(iPortNo, 4);
-	iRet = SCCBA_UpdateMKey(iPortNo, LOADZMKINDEXCLPHER, ZmkLength, Zmk, NULL, CheckValue1);
+	iRet = SCCBA_UpdateMKey(iPortNo, LOADZMKINDEXCLPHER, ZmkLength, Zmk, CheckValue1, CheckValue2);
 
 	return getErrorInfo(iRet, psErrInfo);
 }
