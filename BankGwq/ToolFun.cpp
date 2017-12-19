@@ -8,11 +8,11 @@ int bmp2png(char * bmppath, unsigned char * png)
 {
 	CImage image;
 	char  tmpPath[MAX_PATH] = { 0 };
- 	getTempPath(tmpPath);
+	getTempPath(tmpPath);
 	string pngPath;
 	string bmpPath = bmppath;
 	pngPath = tmpPath;
-	pngPath +="temp.png";
+	pngPath += "temp.png";
 	image.Load((LPCTSTR)bmpPath.c_str());
 	image.Save((LPCTSTR)pngPath.c_str());
 	ifstream pngfile(pngPath);
@@ -32,7 +32,7 @@ int bmp2png(char * bmppath, unsigned char * png)
 
 int getTempPath(char * tmpPath)
 {
-	int strlen = GetTempPath(MAX_PATH,tmpPath);
+	int strlen = GetTempPath(MAX_PATH, tmpPath);
 	//sprintf((char*)tmpPath, "TempPath=%ls", tmpPath);
 	return strlen;
 }
@@ -85,4 +85,30 @@ void ByteToHexStr(const unsigned char* source, char* dest, int sourceLen)
 			dest[i * 2 + 1] = lowByte;
 	}
 	return;
+}
+
+/**
+* ²ð·ÖÊý¾Ý
+*
+* @param buffer
+* @return
+*/
+void splitBuffer(unsigned char * in, int inlen, unsigned char * out, int *outlen, int tag) {
+	if (in == NULL || inlen <= 0) {
+		return;
+	}
+	*outlen = inlen * 2;
+	unsigned char* tmp = new unsigned char[*outlen];
+	memset(tmp, 0, *outlen);
+	for (int i = 0; i < inlen; i++) {
+
+		unsigned char hight = (byte)((in[i] & 0xf0) >> 4);
+		unsigned char low = (byte)(in[i] & 0x0f);
+
+		tmp[i * 2] = (byte)(hight + tag);
+		tmp[(i * 2) + 1] = (byte)(low + tag);
+	}
+	
+	memcpy(out, tmp, *outlen);
+	delete[]tmp;
 }
