@@ -10,6 +10,7 @@
 #include <atlstr.h>
 #include <io.h>
 #include <atlimage.h>
+#include <time.h>
 
 #define LOADZMKINDEXPLAIN 1
 #define LOADZMKINDEXCLPHER 2
@@ -205,7 +206,7 @@ int getDeviceErrInfo(int errCode, char * errInfo)
 		getErrorInfo(-18, errInfo);
 		return -18;
 	default:
-		getErrorInfo(-1, errInfo);
+		getErrorInfo(errCode, errInfo);
 		return -1;
 	}
 }
@@ -344,7 +345,7 @@ BANKGWQ_API int __stdcall SCCBA_StartInfoHtml(int iPortNo, int iTimeOut, int mod
 		}
 
 		iReadSize = sizeof(szBuffer);
-		iRet = comm_frame_write(szBuffer, iHeaderSize + iSegmentSize, szBuffer, &iReadSize, 5000);
+		iRet = comm_frame_write(szBuffer, iHeaderSize + iSegmentSize, szBuffer, &iReadSize, 3000);
 		if (iRet)
 			break;
 		iCurrentlSegment--;
@@ -477,7 +478,7 @@ BANKGWQ_API int __stdcall SCCBA_PlayVoice(int iPortNo, char *strVoice)
 	return iRet;
 }
 
-int  DownOneFile(int iPortNo, char * pFilePath, char *pFilename, int iFileType)
+int  DownOneFile(int iPortNo, char * pFilePath, char *pFilename, int iFileType, int iTimeOut)
 {
 	// 	string filepath(pFilePath);
 	// 	string suffixStr = filepath.substr(filepath.find_last_of('.') + 1);//获取文件后缀 
@@ -488,8 +489,8 @@ int  DownOneFile(int iPortNo, char * pFilePath, char *pFilename, int iFileType)
 	int iFilenameLen;
 	int iFileSize, iSegmentSize, iReadSize, iCurrentlSegment, iTotalSegment;
 	unsigned char *pUtf8Filename;
-
-	unsigned char szBuffer[FRAME_MAX_SIZE];
+	time_t  start = time(NULL);
+	unsigned char szBuffer[FRAME_MAX_SIZE] = { 0 };
 
 	if ((pFilePath == NULL) || (pFilename == NULL))
 		return ERRCODE_INVALID_PARAMETER;
@@ -501,6 +502,7 @@ int  DownOneFile(int iPortNo, char * pFilePath, char *pFilename, int iFileType)
 	iRet = comm_open(iPortNo, iPortNo, 9600);
 	if (iRet)
 	{
+		comm_close();
 		fclose(pFile);
 		return iRet;
 	}
@@ -523,6 +525,13 @@ int  DownOneFile(int iPortNo, char * pFilePath, char *pFilename, int iFileType)
 
 	while (iFileSize)
 	{
+		time_t end = time(NULL);
+		int diff = end - start;
+		if (diff > iTimeOut)
+		{
+			comm_close();
+			return ERRCODE_TIMEOUT;
+		}
 		iIndex = 0;
 		memset(szBuffer, 0, sizeof(szBuffer));
 		szBuffer[iIndex++] = 'A';                                      //Instruction code
@@ -565,7 +574,7 @@ int  DownOneFile(int iPortNo, char * pFilePath, char *pFilename, int iFileType)
 //4. Electronic Card  下载员工头像
 BANKGWQ_API int __stdcall SCCBA_DownHeadFile(int iPortNo, char *pFilePath, char* pFilename)
 {
-	return DownOneFile(iPortNo, pFilePath, pFilename, 1);
+	return DownOneFile(iPortNo, pFilePath, pFilename, 1, 30);
 
 }
 //查询员工头像
@@ -827,7 +836,7 @@ BANKGWQ_API int __stdcall SCCBA_StartEvaluate(int iPortNo, char * tellerID, char
 	sprintf((char *)&szBuffer[iIndex], "%01d", startleve);
 	iIndex++;
 	iLen = sizeof(szBuffer);
-	iRet = comm_frame_write(szBuffer, iIndex, szBuffer, &iLen, 5000);
+	iRet = comm_frame_write(szBuffer, iIndex, szBuffer, &iLen, 3000);
 	if (!iRet)
 	{
 		iLen = sizeof(szBuffer);
@@ -859,7 +868,7 @@ BANKGWQ_API int __stdcall SCCBA_StartEvaluate(int iPortNo, char * tellerID, char
 
 //#define READPIN_DEBUG
 //6. Security Keyboard  获取密码
-BANKGWQ_API int __stdcall SCCBA_ReadPin(int iPortNo, int iEncryType, int iTimes, int iLength, int iTimeout, char *strVoice, char * strInfo, int EndType, char *iResult, const char * AccNo)
+BANKGWQ_API int __stdcall SCCBA_ReadPin(int iPortNo, int iEncryType, int iTimes, int iLength, int iTimeout, char *strVoice, char * strInfo, int EndType, char *iResult, const char * AccNo, int DisplayType)
 {
 	int iRet, iIndex, iVoiceLen, iDispLen, iReadSize;
 	char *pInfo;
@@ -911,7 +920,7 @@ BANKGWQ_API int __stdcall SCCBA_ReadPin(int iPortNo, int iEncryType, int iTimes,
 		{
 			fwrite(strInfo, strlen(strInfo), 1, pInfoFile);
 			fclose(pInfoFile);
-		}
+}
 #endif
 		for (pInfo = strInfo; pInfo;)
 		{
@@ -947,18 +956,18 @@ BANKGWQ_API int __stdcall SCCBA_ReadPin(int iPortNo, int iEncryType, int iTimes,
 		memcpy(&szBuffer[iIndex], AccNo, iAccNoLen);
 		iIndex += iAccNoLen;
 	}
-
+	szBuffer[iIndex++] = DisplayType;
 
 	iReadSize = sizeof(szBuffer);
-	iRet = comm_frame_write(szBuffer, iIndex, szBuffer, &iReadSize, 5000);
+	iRet = comm_frame_write(szBuffer, iIndex, szBuffer, &iReadSize, 1000);
 	if ((!iRet) && iResult && (iTimeout > 0))
 	{
-		char szLen[5];
+		char szLen[2] = { 0 };
 		int iInputLen;
 		iReadSize = sizeof(szBuffer);
 		memset(szBuffer, 0, sizeof(szBuffer));
 		iRet = comm_frame_receive(szBuffer, &iReadSize, iTimeout * 1000);
-		if ((szBuffer[0] == 'R') && (szBuffer[1] == 'P') && (iReadSize > 8))
+		if ((szBuffer[0] == 'R') && (szBuffer[1] == 'P') && (iReadSize > 6))
 		{
 			memset(szLen, 0, sizeof(szLen));
 			szLen[0] = szBuffer[4];
@@ -967,13 +976,13 @@ BANKGWQ_API int __stdcall SCCBA_ReadPin(int iPortNo, int iEncryType, int iTimes,
 			iInputLen = atoi(szLen);
 			if (iInputLen > 99)
 				iInputLen = 99;
-			memcpy(iResult, &szBuffer[8], iInputLen);
+			memcpy(iResult, &szBuffer[6], iInputLen);
 		}
-		else
-		{
-			memset(iResult, 0x30, 32);
-			iResult[32] = 0;
-		}
+// 		else
+// 		{
+// 			memset(iResult, 0x30, 32);
+// 			iResult[32] = 0;
+// 		}
 	}
 	comm_close();
 	if (pUtf8Voice)
@@ -3110,7 +3119,7 @@ BANKGWQ_API int __stdcall  LoadClearZMK(int  iPortNo, char extendPort, int iBaud
 	iRet = SCCBA_UpdateMKey(iPortNo, LOADZMKINDEXPLAIN, ZmkLength, (char *)Zmk, NULL, CheckValues);
 
 	//delete[]_checkvalue1;
-	return getErrorInfo(iRet, psErrInfo);
+	return getDeviceErrInfo(iRet, psErrInfo);
 }
 #pragma endregion
 
@@ -3139,7 +3148,7 @@ BANKGWQ_API int __stdcall  LoadZMK(int iPortNo, char extendPort, int iBaudRate, 
 	int iRet = SettingEncry(iPortNo, 4);
 	iRet = SCCBA_UpdateMKey(iPortNo, LOADZMKINDEXCLPHER, ZmkLength, Zmk, CheckValue1, CheckValue2);
 
-	return getErrorInfo(iRet, psErrInfo);
+	return getDeviceErrInfo(iRet, psErrInfo);
 }
 #pragma endregion
 
@@ -3199,7 +3208,10 @@ BANKGWQ_API int __stdcall  CheckKey(int iPortNo, char extendPort, int iBaudRate,
 
 	iRet = comm_open(iPortNo, iPortNo, 9600);
 	if (iRet)
-		return iRet;
+	{
+		comm_close();
+		return getDeviceErrInfo(iRet, psErrInfo);
+	}
 	if (KeyType == 0)
 	{
 		KeyIndex = LOADZMKINDEXCLPHER;
@@ -3245,7 +3257,7 @@ BANKGWQ_API int __stdcall GetPlainText(int iPortNo, char extendPort, int iBaudRa
 {
 	CString voicestr = ToVoiceStr(VoiceType);
 
-	int ret = SCCBA_ReadPin(iPortNo, 1, 0, *PlainTextLength, iTimeOut, voicestr.GetBuffer(), psErrInfo, EndType, PLainText, NULL);
+	int ret = SCCBA_ReadPin(iPortNo, 1, 1, *PlainTextLength, iTimeOut*0.9f, voicestr.GetBuffer(), DisplayText, EndType, PLainText, NULL, DisPlayType);
 	return getDeviceErrInfo(ret, psErrInfo);
 }
 #pragma endregion
@@ -3259,7 +3271,7 @@ BANKGWQ_API int __stdcall  GetPin(int iPortNo, char extendPort, int iBaudRate, i
 	int iTimes = 1;
 	//char*strInfo = "";
 	CString voicestr = ToVoiceStr(VoiceType);
-	int iRet = SCCBA_ReadPin(iPortNo, 5, iTimes, *PinLength, iTimeOut, voicestr.GetBuffer(), "", EndType, PinCrypt, AccNo);
+	int iRet = SCCBA_ReadPin(iPortNo, 5, iTimes, *PinLength, iTimeOut*0.9f, voicestr.GetBuffer(), "", EndType, PinCrypt, AccNo, 0);
 	return getDeviceErrInfo(iRet, psErrInfo);
 }
 #pragma endregion
@@ -3337,12 +3349,20 @@ int SettingEncry(int iPortNo, int EncryType)
 #pragma region 6.1.2.5	检测柜员头像是否存在
 BANKGWQ_API int __stdcall CheckTellerPhoto(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, char * tellerPhotoName, char * psErrInfo)
 {
+	if (iTimeOut == 0)
+	{
+		iTimeOut = 30;
+	}
 	int iRet, iFileListLen, iNameLen, iIndex;
 	unsigned char szBuffer[FRAME_MAX_SIZE] = { 0 };
 	iNameLen = strlen(tellerPhotoName);
 	iRet = comm_open(iPortNo, iPortNo, 9600);
 	if (iRet)
-		return iRet;
+	{
+		comm_close();
+		return getDeviceErrInfo(iRet,psErrInfo);
+	}
+		
 	iIndex = 0;
 	szBuffer[iIndex++] = 'E';
 	szBuffer[iIndex++] = 'F';
@@ -3353,7 +3373,7 @@ BANKGWQ_API int __stdcall CheckTellerPhoto(int iPortNo, char extendPort, int iBa
 	sprintf((char *)&szBuffer[iIndex], "%s", tellerPhotoName);
 	iIndex += iNameLen;
 	iFileListLen = sizeof(szBuffer);
-	iRet = comm_frame_write(szBuffer, iIndex, szBuffer, &iFileListLen, 5000);
+	iRet = comm_frame_write(szBuffer, iIndex, szBuffer, &iFileListLen, iTimeOut * 1000);
 	comm_close();
 	if (!iRet)
 	{
@@ -3385,9 +3405,10 @@ BANKGWQ_API int __stdcall SetTabletVideoPlay(int iPortNo, char extendPort, int i
 		szBuffer[2] = 1;//视频
 		iLen = sizeof(szBuffer);
 		iRet = comm_frame_write(szBuffer, 3, szBuffer, &iLen, iTimeout);
-		comm_close();
+		
 	}
-	return iRet;
+	comm_close();
+	return getDeviceErrInfo(iRet,psErrInfo);
 }
 
 #pragma endregion
@@ -3406,9 +3427,10 @@ BANKGWQ_API int __stdcall SetTabletAllPlay(int iPortNo, char extendPort, int iBa
 		szBuffer[2] = 2;//播放全部
 		iLen = sizeof(szBuffer);
 		iRet = comm_frame_write(szBuffer, 3, szBuffer, &iLen, iTimeout);
-		comm_close();
+		
 	}
-	return iRet;
+	comm_close();
+	return getDeviceErrInfo(iRet, psErrInfo);
 }
 
 #pragma endregion
@@ -3438,7 +3460,14 @@ BANKGWQ_API int __stdcall FingerEnable(int iPortNo, char extendPort, int iBaudRa
 #pragma region 6.1.3.2	获取指纹特征值
 BANKGWQ_API int __stdcall FPGetFeature(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, char * psFeature, char * psErrInfo)
 {
+	time_t start = time(NULL);
 	SCCBA_PlayVoice(iPortNo, "请按指纹");
+	time_t end = time(NULL);
+	if (end - start > iTimeOut)
+	{
+		return getErrorInfo(-2, psErrInfo);
+	}
+	iTimeOut -= (end - start);
 	unsigned char psFeatureInfo[1024 * 64] = { 0 };
 	unsigned char pngdata[1024 * 64] = { 0 };
 	int Fingerlength = 0;
@@ -3460,7 +3489,14 @@ BANKGWQ_API int __stdcall FPGetFeature(int iPortNo, char extendPort, int iBaudRa
 #pragma region 6.1.3.3	获取指纹模板
 BANKGWQ_API int __stdcall FPGetTemplate(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, char * psTemplate, int iLength, char * psErrInfo)
 {
+	time_t start = time(NULL);
 	SCCBA_PlayVoice(iPortNo, "请按指纹");
+	time_t end = time(NULL);
+	if (end - start > iTimeOut)
+	{
+		return getErrorInfo(-2, psErrInfo);
+	}
+	iTimeOut -= (end - start);
 	unsigned char psFeatureInfo[1024] = { 0 };
 	unsigned char psFeatureInfo2[1024] = { 0 };
 	//unsigned char pngdata[1024 * 64] = { 0 };
@@ -3472,11 +3508,17 @@ BANKGWQ_API int __stdcall FPGetTemplate(int iPortNo, char extendPort, int iBaudR
 	bmpfile = bmppath;
 	bmpfile += "tmp.bmp";
 	strcpy(bmppath, bmpfile.c_str());
-
+	//end = time(NULL);
 	int iret = TcGetFingerTemplate(0, bmppath, psFeatureInfo, &Fingerlength, iTimeOut);
 	if (iret != 0)
 	{
 		return getErrorInfo(-1, psErrInfo);
+	}
+	 end = time(NULL);
+	iTimeOut = iTimeOut - (end - start);
+	if (iTimeOut < 0)
+	{
+		return getErrorInfo(-2, psErrInfo);
 	}
 	iret = TcGetFingerFeature(iPortNo, NULL, psFeatureInfo2, &Fingerlength2, iTimeOut);
 	if (iret != 0)
@@ -3550,7 +3592,7 @@ BANKGWQ_API int __stdcall  Evaluate(int iPortNo, char extendPort, int iBaudRate,
 	char*strOpenData = "请你进行评价";
 	char* strDispData = "感谢你的参与";
 	char*strVoice = "请对我们的服务进行评价";
-	int iret = SCCBA_StartEvaluate(iPortNo, tellerNo, photoPath, tellerName, strOpenData, strDispData, strVoice, iTimeOut, iTimeOut, retValue, nStarLevel);
+	int iret = SCCBA_StartEvaluate(iPortNo, tellerNo, photoPath, tellerName, strOpenData, strDispData, strVoice, iTimeOut*0.9f, iTimeOut, retValue, nStarLevel);
 	if (iret != 0)
 	{
 		if (iret == ERRCODE_TIMEOUT)
@@ -3577,7 +3619,7 @@ BANKGWQ_API int __stdcall DisplayInfo(int iPortNo, char extendPort, int iBaudRat
 	{
 		type = 1;
 	}
-	int iRet = SCCBA_StartInfoHtml(iPortNo, iTimeOut, type, strVoice, Info, &iResult);
+	int iRet = SCCBA_StartInfoHtml(iPortNo, iTimeOut*0.9, type, strVoice, Info, &iResult);
 	*iDisplayResult = iResult;
 	return getDeviceErrInfo(iRet, psErrInfo);
 }
@@ -3588,6 +3630,12 @@ BANKGWQ_API int __stdcall DisplayInfo(int iPortNo, char extendPort, int iBaudRat
 6.1.2.3电子签名
 **/
 BANKGWQ_API int __stdcall ShowPDF(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, char *pdfPath, char *location, char * signpicSize, char *signPdfPath, char *signImgPath, int * signType, char *signData, long* signDataLen, char * psErrInfo) {
+	
+	if (iTimeOut==0)
+	{
+		iTimeOut = 30;
+	}
+	iTimeOut *= 0.9;
 	char *pdfdata;
 	char  *picdata;
 	int pdfdatalen = 0;
@@ -3770,7 +3818,11 @@ int  DownOneFile(char* path, char * &psErrInfo, int &ret, int iPortNo, int iBaud
 批量下传图片及视频文件
 **/
 BANKGWQ_API int __stdcall DownloadFiles(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, char* path, int filetype, char* tellerPhotoName, char * psErrInfo) {
-
+	if (iTimeOut == 0)
+	{
+		iTimeOut = 30;
+	}
+	iTimeOut *= 0.9;
 	unsigned char  sendbuff[4096] = { 0 };
 	unsigned char  retbuff[4096] = { 0 };
 	int retlen = 0;
@@ -3786,7 +3838,7 @@ BANKGWQ_API int __stdcall DownloadFiles(int iPortNo, char extendPort, int iBaudR
 		break;
 	case 2:
 		type = 1;
-		ret = DownOneFile(iPortNo, path, tellerPhotoName, type);
+		ret = DownOneFile(iPortNo, path, tellerPhotoName, type, iTimeOut);
 		return getDeviceErrInfo(ret, psErrInfo);
 
 	case 3:
@@ -3804,13 +3856,13 @@ BANKGWQ_API int __stdcall DownloadFiles(int iPortNo, char extendPort, int iBaudR
 		for each (CString file_path in filearry)
 		{
 			char * file_name = PathFindFileName(file_path);
-			ret = DownOneFile(iPortNo, file_path.GetBuffer(), file_name, type);
+			ret = DownOneFile(iPortNo, file_path.GetBuffer(), file_name, type, iTimeOut);
 		}
 	}
 	else
 	{
 		char * file_name = PathFindFileName(path);
-		ret = DownOneFile(iPortNo, path, file_name, type);
+		ret = DownOneFile(iPortNo, path, file_name, type, iTimeOut);
 	}
 
 
@@ -3835,9 +3887,10 @@ BANKGWQ_API int __stdcall	SetTabletPictruePlay(int iPortNo, char extendPort, int
 		szBuffer[2] = 0;//图片
 		iLen = sizeof(szBuffer);
 		iRet = comm_frame_write(szBuffer, 3, szBuffer, &iLen, iTimeout);
-		comm_close();
+		
 	}
-	return iRet;
+	comm_close();
+	 return getDeviceErrInfo(iRet, psErrInfo);
 }
 /****
 6.1.2.7清除交互屏存储
@@ -3850,8 +3903,10 @@ BANKGWQ_API int __stdcall DeleteFiles(int iPortNo, char extendPort, int iBaudRat
 
 	iRet = comm_open(iPortNo, iPortNo, 9600);
 	if (iRet)
-		return iRet;
-
+	{
+		comm_close();
+		return getDeviceErrInfo(iRet,psErrInfo);
+	}
 	int type = -1;
 	switch (filetype)
 	{

@@ -24,7 +24,7 @@ extern "C" {
 	BANKGWQ_API int __stdcall SCCBA_StartEvaluate(int iPortNo, char * tellerID, char * headFile, char *tellerName, char *strOperData, char *strDispData, char *strVoice, int strDispTimeout, int strTimeout, char *iResult, int startleve);
 
 	//06. Security Keyboard
-	BANKGWQ_API int __stdcall SCCBA_ReadPin(int iPortNo, int iEncryType, int iTimes, int iLength, int iTimeout, char *strVoice, char * strInfo, int EndType, char *iResult,const char * AccNo);
+	BANKGWQ_API int __stdcall SCCBA_ReadPin(int iPortNo, int iEncryType, int iTimes, int iLength, int iTimeout, char *strVoice, char * strInfo, int EndType, char *iResult,const char * AccNo, int DisplayType);
 	BANKGWQ_API int __stdcall SCCBA_InitPinPad(int iPortNo);
 	BANKGWQ_API int __stdcall SCCBA_UpdateMKey(int iPortNo, int ZmkIndex, int ZmkLength, char *Zmk, const char* CheckValue, char *CheckValue2);
 	BANKGWQ_API int __stdcall SCCBA_DownLoadWKey(int iPortNo, int MKeyIndex, int WKeyIndex, int WKeyLength, char *Key, const char*CheckValue, char *CheckValue2);
