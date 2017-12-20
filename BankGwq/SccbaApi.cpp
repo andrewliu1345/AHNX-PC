@@ -3281,7 +3281,7 @@ BANKGWQ_API int __stdcall GetPlainText(int iPortNo, char extendPort, int iBaudRa
 	CString voicestr = ToVoiceStr(VoiceType);
 	unsigned char* pUtf8Voice = NULL;
 	SCCBA_GB18030ToUTF8(voicestr.GetBuffer(), &pUtf8Voice);
-	int ret = SCCBA_ReadPin(iPortNo, 1, 1, *PlainTextLength, iTimeOut*0.9f, (char *)pUtf8Voice, DisplayText, EndType, PLainText, NULL, DisPlayType);
+	int ret = SCCBA_ReadPin(iPortNo, 1, 1, *PlainTextLength, iTimeOut*0.95f, (char *)pUtf8Voice, DisplayText, EndType, PLainText, NULL, DisPlayType);
 	if (pUtf8Voice)
 	{
 		delete[]pUtf8Voice;
@@ -3301,11 +3301,17 @@ BANKGWQ_API int __stdcall  GetPin(int iPortNo, char extendPort, int iBaudRate, i
 	CString voicestr = ToVoiceStr(VoiceType);
 	unsigned char* pUtf8Voice = NULL;
 	SCCBA_GB18030ToUTF8(voicestr.GetBuffer(), &pUtf8Voice);
-	int iRet = SCCBA_ReadPin(iPortNo, 5, iTimes, *PinLength, iTimeOut*0.9f, (char *)pUtf8Voice, "", EndType, PinCrypt, AccNo, 0);
+// 	unsigned char* pUtf8Info = NULL;
+// 	SCCBA_GB18030ToUTF8("请输入密码：", &pUtf8Info);
+	int iRet = SCCBA_ReadPin(iPortNo, 5, iTimes, *PinLength, iTimeOut*0.95f, (char *)pUtf8Voice, (char *)pUtf8Voice, EndType, PinCrypt, AccNo, 0);
 	if (pUtf8Voice)
 	{
 		delete[]pUtf8Voice;
 	}
+// 	if (pUtf8Info)
+// 	{
+// 		delete[]pUtf8Info;
+// 	}
 	return getDeviceErrInfo(iRet, psErrInfo);
 }
 #pragma endregion
@@ -3500,7 +3506,7 @@ BANKGWQ_API int __stdcall FPGetFeature(int iPortNo, char extendPort, int iBaudRa
 	char *strVoice = "请按指纹";
 	unsigned char* pUtf8Voice = NULL;
 	SCCBA_GB18030ToUTF8(strVoice, &pUtf8Voice);
-	SCCBA_StartInfoHtml(iPortNo, iTimeOut*0.9, 2, (char *)pUtf8Voice, (char *)pUtf8Voice, &iResult);
+	SCCBA_StartInfoHtml(iPortNo, iTimeOut, 2, (char *)pUtf8Voice, (char *)pUtf8Voice, &iResult);
 	if (pUtf8Voice != NULL)
 	{
 		delete[] pUtf8Voice;
@@ -3508,6 +3514,7 @@ BANKGWQ_API int __stdcall FPGetFeature(int iPortNo, char extendPort, int iBaudRa
 	time_t end = time(NULL);
 	if (end - start > iTimeOut)
 	{
+		SCCBA_cancelSignPDF(iPortNo);
 		return getErrorInfo(-2, psErrInfo);
 	}
 	iTimeOut -= (end - start);
@@ -3515,9 +3522,10 @@ BANKGWQ_API int __stdcall FPGetFeature(int iPortNo, char extendPort, int iBaudRa
 	unsigned char pngdata[1024 * 64] = { 0 };
 	int Fingerlength = 0;
 
-	int iret = TcGetFingerFeature(0, NULL, psFeatureInfo, &Fingerlength, iTimeOut);
+	int iret = TcGetFingerFeature(0, NULL, psFeatureInfo, &Fingerlength, iTimeOut-1);
 	if (iret != 0)
 	{
+		SCCBA_cancelSignPDF(iPortNo);
 		return getErrorInfo(-1, psErrInfo);
 	}
 	SCCBA_cancelSignPDF(iPortNo);
@@ -3539,7 +3547,7 @@ BANKGWQ_API int __stdcall FPGetTemplate(int iPortNo, char extendPort, int iBaudR
 	char *strVoice = "请按指纹";
 	unsigned char* pUtf8Voice = NULL;
 	SCCBA_GB18030ToUTF8(strVoice, &pUtf8Voice);
-	SCCBA_StartInfoHtml(iPortNo, iTimeOut*0.9, 2, (char *)pUtf8Voice, (char *)pUtf8Voice, &iResult);
+	SCCBA_StartInfoHtml(iPortNo, iTimeOut, 2, (char *)pUtf8Voice, (char *)pUtf8Voice, &iResult);
 	if (pUtf8Voice != NULL)
 	{
 		delete[] pUtf8Voice;
@@ -3547,6 +3555,7 @@ BANKGWQ_API int __stdcall FPGetTemplate(int iPortNo, char extendPort, int iBaudR
 	time_t end = time(NULL);
 	if (end - start > iTimeOut)
 	{
+		SCCBA_cancelSignPDF(iPortNo);
 		return getErrorInfo(-2, psErrInfo);
 	}
 	iTimeOut -= (end - start);
@@ -3562,26 +3571,30 @@ BANKGWQ_API int __stdcall FPGetTemplate(int iPortNo, char extendPort, int iBaudR
 	bmpfile += "tmp.bmp";
 	strcpy(bmppath, bmpfile.c_str());
 	//end = time(NULL);
-	int iret = TcGetFingerTemplate(0, bmppath, psFeatureInfo, &Fingerlength, iTimeOut);
+	int iret = TcGetFingerTemplate(0, bmppath, psFeatureInfo, &Fingerlength, iTimeOut-1);
 	if (iret != 0)
 	{
+		SCCBA_cancelSignPDF(iPortNo);
 		return getErrorInfo(-1, psErrInfo);
 	}
 	end = time(NULL);
 	iTimeOut = iTimeOut - (end - start);
 	if (iTimeOut < 0)
 	{
+		SCCBA_cancelSignPDF(iPortNo);
 		return getErrorInfo(-2, psErrInfo);
 	}
-	iret = TcGetFingerFeature(iPortNo, NULL, psFeatureInfo2, &Fingerlength2, iTimeOut);
+	iret = TcGetFingerFeature(iPortNo, NULL, psFeatureInfo2, &Fingerlength2, iTimeOut-1);
 	if (iret != 0)
 	{
+		SCCBA_cancelSignPDF(iPortNo);
 		return getErrorInfo(-1, psErrInfo);
 	}
 
 	iret = TcMatchFinger(psFeatureInfo, psFeatureInfo2, 3);
 	if (iret != 0)
 	{
+		SCCBA_cancelSignPDF(iPortNo);
 		return getErrorInfo(-1, psErrInfo);
 	}
 	SCCBA_cancelSignPDF(iPortNo);
@@ -3598,7 +3611,7 @@ BANKGWQ_API int __stdcall FPGetTemplate(int iPortNo, char extendPort, int iBaudR
 BANKGWQ_API int __stdcall FPGetImgData(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, int iIndex, char * psImgData, char * psErrInfo)
 {
 	int iResult = 0;
-	//SCCBA_StartInfoHtml(iPortNo, iTimeOut*0.9, 0, "请按指纹", "请按指纹", &iResult);
+	//SCCBA_StartInfoHtml(iPortNo, iTimeOut*0.95, 0, "请按指纹", "请按指纹", &iResult);
 	char bmpdata[31478] = { 0 };
 	char bmppath[MAX_PATH] = { 0 };
 	string bmpfile;
@@ -3655,7 +3668,7 @@ BANKGWQ_API int __stdcall  Evaluate(int iPortNo, char extendPort, int iBaudRate,
 	SCCBA_GB18030ToUTF8(strOperData, &pUtf8OperData);
 	SCCBA_GB18030ToUTF8(strDispData, &pUtf8DispData);
 	SCCBA_GB18030ToUTF8(strVoice, &pUtf8Voice);
-	int iret = SCCBA_StartEvaluate(iPortNo, tellerNo, photoPath, tellerName, (char *)pUtf8OperData, (char *)pUtf8DispData, (char *)pUtf8Voice, iTimeOut*0.9f, iTimeOut, retValue, nStarLevel);
+	int iret = SCCBA_StartEvaluate(iPortNo, tellerNo, photoPath, tellerName, (char *)pUtf8OperData, (char *)pUtf8DispData, (char *)pUtf8Voice, iTimeOut*0.95f, iTimeOut, retValue, nStarLevel);
 	if (pUtf8OperData)
 	{
 		delete[] pUtf8OperData;
@@ -3697,7 +3710,7 @@ BANKGWQ_API int __stdcall DisplayInfo(int iPortNo, char extendPort, int iBaudRat
 	}
 	unsigned char  *pUtf8Voice = NULL;
 	SCCBA_GB18030ToUTF8(strVoice, &pUtf8Voice);
-	int iRet = SCCBA_StartInfoHtml(iPortNo, iTimeOut*0.9, type, strVoice, Info, &iResult);
+	int iRet = SCCBA_StartInfoHtml(iPortNo, iTimeOut*0.95, type, strVoice, Info, &iResult);
 	if (pUtf8Voice)
 		delete[] pUtf8Voice;
 	*iDisplayResult = iResult;
