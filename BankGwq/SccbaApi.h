@@ -76,9 +76,9 @@ extern "C" {
 
 
 	//Ö¸ÎÆÒÇ
-	BANKGWQ_API int __stdcall FPGetFeature(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, char *psFeature, char * psErrInfo);
-	BANKGWQ_API int __stdcall FPGetTemplate(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, char *psTemplate, int iLength, char * psErrInfo);
-	BANKGWQ_API int __stdcall FPGetImgData(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, int iIndex, char *psImgData, char * psErrInfo);
+// 	BANKGWQ_API int __stdcall FPGetFeature(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, char *psFeature, char * psErrInfo);
+// 	BANKGWQ_API int __stdcall FPGetTemplate(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, char *psTemplate, int iLength, char * psErrInfo);
+// 	BANKGWQ_API int __stdcall FPGetImgData(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, int iIndex, char *psImgData, char * psErrInfo);
 #ifdef __cplusplus
 }
 #endif

@@ -101,7 +101,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>GwqDllComm.lib;TESO_NH_HID.lib;hid.lib;SetupAPI.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>GwqDllComm.lib;TESO_NH_HID.lib;libFPDev_WL.lib;hid.lib;SetupAPI.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ModuleDefinitionFile>.\BankGwqSccba.def</ModuleDefinitionFile>
     </Link>
   </ItemDefinitionGroup>

@@ -11,6 +11,7 @@
 #include <io.h>
 #include <atlimage.h>
 #include <time.h>
+#include "Include/libFPDev_WL_dll.h"
 
 #define LOADZMKINDEXPLAIN 1
 #define LOADZMKINDEXCLPHER 2
@@ -3481,8 +3482,10 @@ BANKGWQ_API int __stdcall SetTabletAllPlay(int iPortNo, char extendPort, int iBa
 BANKGWQ_API int __stdcall FingerEnable(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, int * result, char * psErrInfo)
 {
 	char psFactory[1024] = { 0 };
-	char psFirmVersion[1024] = { 0 };
-	int ret = TcGetDeviceInfo(iPortNo, psFactory, psFirmVersion);
+	int lpLength = 0;
+	unsigned char psFirmVersion[1024] = { 0 };
+	//int ret = TcGetDeviceInfo(iPortNo, psFactory, psFirmVersion);
+	int ret= FPIGetVersion(iPortNo, extendPort, iBaudRate, psFirmVersion, &lpLength);
 	if (ret != 0)
 	{
 
@@ -3497,153 +3500,153 @@ BANKGWQ_API int __stdcall FingerEnable(int iPortNo, char extendPort, int iBaudRa
 }
 #pragma endregion
 
-#pragma region 6.1.3.2	获取指纹特征值
-BANKGWQ_API int __stdcall FPGetFeature(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, char * psFeature, char * psErrInfo)
-{
-	int iResult = 0;
-	time_t start = time(NULL);
-	//SCCBA_PlayVoice(iPortNo, "请按指纹");
-	char *strVoice = "请按指纹";
-	// 	unsigned char* pUtf8Voice = NULL;
-	// 	SCCBA_GB18030ToUTF8(strVoice, &pUtf8Voice);
-	SCCBA_StartInfoHtml(iPortNo, iTimeOut, 2, strVoice, strVoice, &iResult);
-	// 	if (pUtf8Voice != NULL)
-	// 	{
-	// 		delete[] pUtf8Voice;
-	// 	}
-	time_t end = time(NULL);
-	if (end - start > iTimeOut)
-	{
-		SCCBA_cancelSignPDF(iPortNo);
-		return getErrorInfo(-2, psErrInfo);
-	}
-	iTimeOut -= (end - start);
-	unsigned char psFeatureInfo[1024 * 64] = { 0 };
-	unsigned char pngdata[1024 * 64] = { 0 };
-	int Fingerlength = 0;
-
-	int iret = TcGetFingerFeature(0, NULL, psFeatureInfo, &Fingerlength, iTimeOut - 1);
-	if (iret != 0)
-	{
-		SCCBA_cancelSignPDF(iPortNo);
-		return getErrorInfo(-1, psErrInfo);
-	}
-	SCCBA_cancelSignPDF(iPortNo);
-	int iLength = 0;
-	unsigned char  psfeature[1024 * 64] = { 0 };
-	string feature((char *)psFeatureInfo);
-	base64::base64_decode(feature, psfeature, &iLength);
-	splitBuffer(psfeature, iLength, (unsigned char *)psFeature, &iLength, 0x30);
-	//memcpy(psFeature, psFeatureInfo, Fingerlength);
-	return getErrorInfo(0, psErrInfo);
-}
-#pragma endregion
-
-#pragma region 6.1.3.3	获取指纹模板
-BANKGWQ_API int __stdcall FPGetTemplate(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, char * psTemplate, int iLength, char * psErrInfo)
-{
-	int iResult = 0;
-	time_t start = time(NULL);
-	char *strVoice = "请按指纹";
-	// 	unsigned char* pUtf8Voice = NULL;
-	// 	SCCBA_GB18030ToUTF8(strVoice, &pUtf8Voice);
-	SCCBA_StartInfoHtml(iPortNo, iTimeOut, 2, strVoice, strVoice, &iResult);
-	// 	if (pUtf8Voice != NULL)
-	// 	{
-	// 		delete[] pUtf8Voice;
-	// 	}
-	time_t end = time(NULL);
-	if (end - start > iTimeOut)
-	{
-		SCCBA_cancelSignPDF(iPortNo);
-		return getErrorInfo(-2, psErrInfo);
-	}
-	iTimeOut -= (end - start);
-	unsigned char psFeatureInfo[1024] = { 0 };
-	unsigned char psFeatureInfo2[1024] = { 0 };
-	//unsigned char pngdata[1024 * 64] = { 0 };
-	int Fingerlength = 0;
-	int Fingerlength2 = 0;
-	char bmppath[MAX_PATH] = { 0 };
-	string bmpfile;
-	getTempPath(bmppath);
-	bmpfile = bmppath;
-	bmpfile += "tmp.bmp";
-	strcpy(bmppath, bmpfile.c_str());
-	//end = time(NULL);
-	int iret = TcGetFingerTemplate(0, bmppath, psFeatureInfo, &Fingerlength, iTimeOut - 1);
-	if (iret != 0)
-	{
-		SCCBA_cancelSignPDF(iPortNo);
-		return getErrorInfo(-1, psErrInfo);
-	}
-	end = time(NULL);
-	iTimeOut = iTimeOut - (end - start);
-	if (iTimeOut < 0)
-	{
-		SCCBA_cancelSignPDF(iPortNo);
-		return getErrorInfo(-2, psErrInfo);
-	}
-	iret = TcGetFingerFeature(iPortNo, NULL, psFeatureInfo2, &Fingerlength2, iTimeOut - 1);
-	if (iret != 0)
-	{
-		SCCBA_cancelSignPDF(iPortNo);
-		return getErrorInfo(-1, psErrInfo);
-	}
-
-	iret = TcMatchFinger(psFeatureInfo, psFeatureInfo2, 3);
-	if (iret != 0)
-	{
-		SCCBA_cancelSignPDF(iPortNo);
-		return getErrorInfo(-1, psErrInfo);
-	}
-	SCCBA_cancelSignPDF(iPortNo);
-	unsigned char  psfeature[1024 * 64] = { 0 };
-	string feature((char *)psFeatureInfo);
-	base64::base64_decode(feature, psfeature, &iLength);
-	splitBuffer(psfeature, iLength, (unsigned char *)psTemplate, &iLength, 0x30);
-
-	return getErrorInfo(0, psErrInfo);
-}
-#pragma endregion
-
-#pragma region 6.1.3.4	获取指纹图像
-BANKGWQ_API int __stdcall FPGetImgData(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, int iIndex, char * psImgData, char * psErrInfo)
-{
-	int iResult = 0;
-	//SCCBA_StartInfoHtml(iPortNo, iTimeOut*0.95, 0, "请按指纹", "请按指纹", &iResult);
-	char bmpdata[31478] = { 0 };
-	char bmppath[MAX_PATH] = { 0 };
-	string bmpfile;
-	getTempPath(bmppath);
-	bmpfile = bmppath;
-	bmpfile += "tmp.bmp";
-	strcpy(bmppath, bmpfile.c_str());
-	// 	unsigned char psFeatureInfo[1024 * 64] = { 0 };
-	// 	unsigned char pngdata[1024 * 64] = { 0 };
-
-	// 	int Fingerlength = 0;
-	// 	if (psImgData == NULL)
-	// 	{
-	// 		return getErrorInfo(-1, psErrInfo);
-	// 	}
-	// 	int iret = TcGetFingerFeature(0, bmppath, psFeatureInfo, &Fingerlength, iTimeOut);
-	// 	if (iret != 0)
-	// 	{
-	// 		return getErrorInfo(-1, psErrInfo);
-	// 	}
-	ifstream in(bmppath, ios::binary);
-	if (!in.is_open())
-	{
-		return getErrorInfo(-1, psErrInfo);
-	}
-	in.read(bmpdata, 31478);
-	string s = base64::base64_encode((unsigned char *)bmpdata + 1078, 152 * 200);
-	const char * p = s.c_str();
-	memcpy(psImgData, p, s.length());
-	return getErrorInfo(0, psErrInfo);
-}
-#pragma endregion
+// #pragma region 6.1.3.2	获取指纹特征值
+// BANKGWQ_API int __stdcall FPGetFeature(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, char * psFeature, char * psErrInfo)
+// {
+// 	int iResult = 0;
+// 	time_t start = time(NULL);
+// 	//SCCBA_PlayVoice(iPortNo, "请按指纹");
+// 	char *strVoice = "请按指纹";
+// 	// 	unsigned char* pUtf8Voice = NULL;
+// 	// 	SCCBA_GB18030ToUTF8(strVoice, &pUtf8Voice);
+// 	SCCBA_StartInfoHtml(iPortNo, iTimeOut, 2, strVoice, strVoice, &iResult);
+// 	// 	if (pUtf8Voice != NULL)
+// 	// 	{
+// 	// 		delete[] pUtf8Voice;
+// 	// 	}
+// 	time_t end = time(NULL);
+// 	if (end - start > iTimeOut)
+// 	{
+// 		SCCBA_cancelSignPDF(iPortNo);
+// 		return getErrorInfo(-2, psErrInfo);
+// 	}
+// 	iTimeOut -= (end - start);
+// 	unsigned char psFeatureInfo[1024 * 64] = { 0 };
+// 	unsigned char pngdata[1024 * 64] = { 0 };
+// 	int Fingerlength = 0;
+// 
+// 	int iret = TcGetFingerFeature(0, NULL, psFeatureInfo, &Fingerlength, iTimeOut - 1);
+// 	if (iret != 0)
+// 	{
+// 		SCCBA_cancelSignPDF(iPortNo);
+// 		return getErrorInfo(-1, psErrInfo);
+// 	}
+// 	SCCBA_cancelSignPDF(iPortNo);
+// 	int iLength = 0;
+// 	unsigned char  psfeature[1024 * 64] = { 0 };
+// 	string feature((char *)psFeatureInfo);
+// 	base64::base64_decode(feature, psfeature, &iLength);
+// 	splitBuffer(psfeature, iLength, (unsigned char *)psFeature, &iLength, 0x30);
+// 	//memcpy(psFeature, psFeatureInfo, Fingerlength);
+// 	return getErrorInfo(0, psErrInfo);
+// }
+// #pragma endregion
+// 
+// #pragma region 6.1.3.3	获取指纹模板
+// BANKGWQ_API int __stdcall FPGetTemplate(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, char * psTemplate, int iLength, char * psErrInfo)
+// {
+// 	int iResult = 0;
+// 	time_t start = time(NULL);
+// 	char *strVoice = "请按指纹";
+// 	// 	unsigned char* pUtf8Voice = NULL;
+// 	// 	SCCBA_GB18030ToUTF8(strVoice, &pUtf8Voice);
+// 	SCCBA_StartInfoHtml(iPortNo, iTimeOut, 2, strVoice, strVoice, &iResult);
+// 	// 	if (pUtf8Voice != NULL)
+// 	// 	{
+// 	// 		delete[] pUtf8Voice;
+// 	// 	}
+// 	time_t end = time(NULL);
+// 	if (end - start > iTimeOut)
+// 	{
+// 		SCCBA_cancelSignPDF(iPortNo);
+// 		return getErrorInfo(-2, psErrInfo);
+// 	}
+// 	iTimeOut -= (end - start);
+// 	unsigned char psFeatureInfo[1024] = { 0 };
+// 	unsigned char psFeatureInfo2[1024] = { 0 };
+// 	//unsigned char pngdata[1024 * 64] = { 0 };
+// 	int Fingerlength = 0;
+// 	int Fingerlength2 = 0;
+// 	char bmppath[MAX_PATH] = { 0 };
+// 	string bmpfile;
+// 	getTempPath(bmppath);
+// 	bmpfile = bmppath;
+// 	bmpfile += "tmp.bmp";
+// 	strcpy(bmppath, bmpfile.c_str());
+// 	//end = time(NULL);
+// 	int iret = TcGetFingerTemplate(0, bmppath, psFeatureInfo, &Fingerlength, iTimeOut - 1);
+// 	if (iret != 0)
+// 	{
+// 		SCCBA_cancelSignPDF(iPortNo);
+// 		return getErrorInfo(-1, psErrInfo);
+// 	}
+// 	end = time(NULL);
+// 	iTimeOut = iTimeOut - (end - start);
+// 	if (iTimeOut < 0)
+// 	{
+// 		SCCBA_cancelSignPDF(iPortNo);
+// 		return getErrorInfo(-2, psErrInfo);
+// 	}
+// 	iret = TcGetFingerFeature(iPortNo, NULL, psFeatureInfo2, &Fingerlength2, iTimeOut - 1);
+// 	if (iret != 0)
+// 	{
+// 		SCCBA_cancelSignPDF(iPortNo);
+// 		return getErrorInfo(-1, psErrInfo);
+// 	}
+// 
+// 	iret = TcMatchFinger(psFeatureInfo, psFeatureInfo2, 3);
+// 	if (iret != 0)
+// 	{
+// 		SCCBA_cancelSignPDF(iPortNo);
+// 		return getErrorInfo(-1, psErrInfo);
+// 	}
+// 	SCCBA_cancelSignPDF(iPortNo);
+// 	unsigned char  psfeature[1024 * 64] = { 0 };
+// 	string feature((char *)psFeatureInfo);
+// 	base64::base64_decode(feature, psfeature, &iLength);
+// 	splitBuffer(psfeature, iLength, (unsigned char *)psTemplate, &iLength, 0x30);
+// 
+// 	return getErrorInfo(0, psErrInfo);
+// }
+// #pragma endregion
+// 
+// #pragma region 6.1.3.4	获取指纹图像
+// BANKGWQ_API int __stdcall FPGetImgData(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, int iIndex, char * psImgData, char * psErrInfo)
+// {
+// 	int iResult = 0;
+// 	//SCCBA_StartInfoHtml(iPortNo, iTimeOut*0.95, 0, "请按指纹", "请按指纹", &iResult);
+// 	char bmpdata[31478] = { 0 };
+// 	char bmppath[MAX_PATH] = { 0 };
+// 	string bmpfile;
+// 	getTempPath(bmppath);
+// 	bmpfile = bmppath;
+// 	bmpfile += "tmp.bmp";
+// 	strcpy(bmppath, bmpfile.c_str());
+// 	// 	unsigned char psFeatureInfo[1024 * 64] = { 0 };
+// 	// 	unsigned char pngdata[1024 * 64] = { 0 };
+// 
+// 	// 	int Fingerlength = 0;
+// 	// 	if (psImgData == NULL)
+// 	// 	{
+// 	// 		return getErrorInfo(-1, psErrInfo);
+// 	// 	}
+// 	// 	int iret = TcGetFingerFeature(0, bmppath, psFeatureInfo, &Fingerlength, iTimeOut);
+// 	// 	if (iret != 0)
+// 	// 	{
+// 	// 		return getErrorInfo(-1, psErrInfo);
+// 	// 	}
+// 	ifstream in(bmppath, ios::binary);
+// 	if (!in.is_open())
+// 	{
+// 		return getErrorInfo(-1, psErrInfo);
+// 	}
+// 	in.read(bmpdata, 31478);
+// 	string s = base64::base64_encode((unsigned char *)bmpdata + 1078, 152 * 200);
+// 	const char * p = s.c_str();
+// 	memcpy(psImgData, p, s.length());
+// 	return getErrorInfo(0, psErrInfo);
+// }
+// #pragma endregion
 #pragma endregion
 
 
