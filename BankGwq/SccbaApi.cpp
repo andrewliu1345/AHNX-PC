@@ -1405,7 +1405,11 @@ int __stdcall SCCBA_signPDFByType(int type, int iPortNo, char* pButtonInfo, unsi
 				iRet = ERRCODE_RECEIVE_DATA_FAIL;
 				break;
 			}
-
+			if ((szBuffer[0] != 'R') && (szBuffer[1] != 'F'))
+			{
+				iRet = -20;
+				break;
+			}
 			iIndex += 3;
 
 			memset(currSegment, 0, sizeof(currSegment));
@@ -1688,9 +1692,9 @@ int __stdcall SCCBA_signPDFByType(int type, int iPortNo, char* pButtonInfo, unsi
 				fread(signeddata, 1, DebugFileSize, pDebugFile);
 				signeddata[DebugFileSize] = 0;
 				*signedLen = DebugFileSize;
-			}
+	}
 			fclose(pDebugFile);
-		}
+}
 	}
 #endif
 	return iRet;
@@ -3521,8 +3525,13 @@ BANKGWQ_API int __stdcall FPGetFeature(int iPortNo, char extendPort, int iBaudRa
 	unsigned char psFeatureInfo[1024 * 64] = { 0 };
 	unsigned char pngdata[1024 * 64] = { 0 };
 	int Fingerlength = 0;
-
-	int iret = TcGetFingerFeature(0, NULL, psFeatureInfo, &Fingerlength, iTimeOut - 1);
+	char bmppath[MAX_PATH] = { 0 };
+	string bmpfile;
+	getTempPath(bmppath);
+	bmpfile = bmppath;
+	bmpfile += "signa.bmp";
+	strcpy(bmppath, bmpfile.c_str());
+	int iret = TcGetFingerFeature(0, bmppath, psFeatureInfo, &Fingerlength, iTimeOut - 1);
 	if (iret != 0)
 	{
 		SCCBA_cancelSignPDF(iPortNo);
@@ -3724,6 +3733,7 @@ BANKGWQ_API int __stdcall DisplayInfo(int iPortNo, char extendPort, int iBaudRat
 **/
 BANKGWQ_API int __stdcall ShowPDF(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, char *pdfPath, char *location, char * signpicSize, char *signPdfPath, char *signImgPath, int * signType, char *signData, long* signDataLen, char * psErrInfo) {
 
+	time_t start = time(NULL);
 	if (iTimeOut == 0)
 	{
 		iTimeOut = 30;
@@ -3763,8 +3773,23 @@ BANKGWQ_API int __stdcall ShowPDF(int iPortNo, char extendPort, int iBaudRate, i
 	memset(pdfdata, 0, iFileSize);
 	pFile.read(pdfdata, iFileSize);
 	pFile.close();
+	time_t end = time(NULL);
+	iTimeOut -= (end - start);
 	int iret = SCCBA_signPDF(iPortNo, (unsigned char *)pdfdata, iFileSize, page, x, y, w, h, iTimeOut, picdata, &piclen, signData, (int *)signDataLen);
 	delete[]pdfdata;
+	if (iret == -20)
+	{
+		iTimeOut -= (end - start);
+		char Feature[1024] = { 0 };
+		iret = FPGetFeature(iPortNo, extendPort, iBaudRate, iTimeOut, Feature, psErrInfo);
+		char bmppath[MAX_PATH] = { 0 };
+		string bmpfile;
+		getTempPath(bmppath);
+		bmpfile = bmppath;
+		bmpfile += "signa.bmp";
+		strcpy(bmppath, bmpfile.c_str());
+
+	}
 	if (iret != 0)
 	{
 		return getDeviceErrInfo(iret, psErrInfo);
@@ -3978,8 +4003,9 @@ BANKGWQ_API int __stdcall	SetTabletPictruePlay(int iPortNo, char extendPort, int
 		szBuffer[0] = 'P';
 		szBuffer[1] = 'T';
 		szBuffer[2] = 0;//ͼƬ
+		szBuffer[3] = nSleepTime;
 		iLen = sizeof(szBuffer);
-		iRet = comm_frame_write(szBuffer, 3, szBuffer, &iLen, iTimeout);
+		iRet = comm_frame_write(szBuffer, 4, szBuffer, &iLen, iTimeout);
 
 	}
 	comm_close();
