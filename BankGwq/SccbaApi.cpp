@@ -27,7 +27,8 @@ int getDeviceErrInfo(int errCode, char * errInfo);
 int TransparentImage(CImage &cimage);
 int getKeyLength(int ZmkLength);
 int SettingEncry(int iPort, int EncryType);
-
+int getFingerSigna(int iPort, int page, int x, int y, int w, int h, char *signPdfPath);
+int  getFeature(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, char *psFeature, int *psFeatureLength, char * psErrInfo);
 CString ToVoiceStr(int VoiceType)
 {
 	CString voicestr = "";
@@ -1368,11 +1369,17 @@ int __stdcall SCCBA_signPDFByType(int type, int iPortNo, char* pButtonInfo, unsi
 		//Wait first frame
 		iReadSize = sizeof(szBuffer);
 		iRet = comm_frame_receive(szBuffer, &iReadSize, iTimeout * 1000);
+		if ((szBuffer[0] != 'S') && (szBuffer[1] != 'F'))
+		{
+			iRet = -20;
+			return iRet;
+		}
 		if ((szBuffer[0] == 'C') && (szBuffer[1] == 'L'))
 		{
 			iRet = ERRCODE_CANCEL_OPERATION;
 			return iRet;
 		}
+
 #ifdef SIGNPDF_DEBUG
 		if (pSignFile == NULL)
 		{
@@ -1399,17 +1406,14 @@ int __stdcall SCCBA_signPDFByType(int type, int iPortNo, char* pButtonInfo, unsi
 		iSignPdfFileLength = -1;
 		while (!iRet)
 		{
+
 			iIndex = 0;
 			if ((szBuffer[0] != 'R') && (szBuffer[1] != 'G'))
 			{
 				iRet = ERRCODE_RECEIVE_DATA_FAIL;
 				break;
 			}
-			if ((szBuffer[0] != 'R') && (szBuffer[1] != 'F'))
-			{
-				iRet = -20;
-				break;
-			}
+
 			iIndex += 3;
 
 			memset(currSegment, 0, sizeof(currSegment));
@@ -1692,9 +1696,9 @@ int __stdcall SCCBA_signPDFByType(int type, int iPortNo, char* pButtonInfo, unsi
 				fread(signeddata, 1, DebugFileSize, pDebugFile);
 				signeddata[DebugFileSize] = 0;
 				*signedLen = DebugFileSize;
-	}
+			}
 			fclose(pDebugFile);
-}
+		}
 	}
 #endif
 	return iRet;
@@ -3384,6 +3388,100 @@ int SettingEncry(int iPortNo, int EncryType)
 	comm_close();
 	return iRet;
 }
+int getFingerSigna(int iPort, int page, int x, int y, int w, int h, char * signPdfPath)
+{
+	int iRet = comm_open(iPort, iPort, 9600);
+	if (iRet)
+		return iRet;
+	FILE *pSignPdfFile = NULL;
+	int iSignPdfFileLength = -1;
+	unsigned char szBuffer[FRAME_MAX_SIZE] = { 0 };
+
+	int iIndex = 0;
+	//合成指纹
+	szBuffer[iIndex++] = 'S';
+	szBuffer[iIndex++] = 'F';
+	sprintf((char *)&szBuffer[iIndex], "%04d", page);                     //Sign parameter
+	iIndex += 4;
+	sprintf((char *)&szBuffer[iIndex], "%04d", x);
+	iIndex += 4;
+	sprintf((char *)&szBuffer[iIndex], "%04d", y);
+	iIndex += 4;
+	sprintf((char *)&szBuffer[iIndex], "%04d", w);
+	iIndex += 4;
+	sprintf((char *)&szBuffer[iIndex], "%04d", h);
+	iIndex += 4;
+	int iReadSize = 0;
+	iRet = comm_frame_write(szBuffer, iIndex, szBuffer, &iReadSize, 5000);
+	if (iRet)
+	{
+		comm_close();
+		return iRet;
+	}
+	if ((szBuffer[0] != 'S') && (szBuffer[1] != 'F'))
+	{
+		iRet = -17;
+		return iRet;
+	}
+	if (pSignPdfFile == NULL)
+	{
+
+
+		pSignPdfFile = fopen(signPdfPath, "wb");
+		if (pSignPdfFile == NULL)
+			iRet = ERRCODE_OPENFILE_FAILURE;
+	}
+	iSignPdfFileLength = -1;
+	while (!iRet)
+	{
+
+	}
+	return 0;
+}
+int getFeature(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, char * psFeature, int * psFeatureLength, char * psErrInfo)
+{
+	int iResult = 0;
+	time_t start = time(NULL);
+	//SCCBA_PlayVoice(iPortNo, "请按指纹");
+	char *strVoice = "请按指纹";
+	// 	unsigned char* pUtf8Voice = NULL;
+	// 	SCCBA_GB18030ToUTF8(strVoice, &pUtf8Voice);
+	SCCBA_StartInfoHtml(iPortNo, iTimeOut, 2, strVoice, strVoice, &iResult);
+	// 	if (pUtf8Voice != NULL)
+	// 	{
+	// 		delete[] pUtf8Voice;
+	// 	}
+	time_t end = time(NULL);
+	if (end - start > iTimeOut)
+	{
+		SCCBA_cancelSignPDF(iPortNo);
+		return getErrorInfo(-2, psErrInfo);
+	}
+	iTimeOut -= (end - start);
+	unsigned char psFeatureInfo[1024 * 64] = { 0 };
+	unsigned char pngdata[1024 * 64] = { 0 };
+	//int Fingerlength = 0;
+	char bmppath[MAX_PATH] = { 0 };
+	string bmpfile;
+	getTempPath(bmppath);
+	bmpfile = bmppath;
+	bmpfile += "signa.bmp";
+	strcpy(bmppath, bmpfile.c_str());
+	int iret = TcGetFingerFeature(0, bmppath, psFeatureInfo, &psFeatureLength, iTimeOut - 1);
+	if (iret != 0)
+	{
+		SCCBA_cancelSignPDF(iPortNo);
+		return getErrorInfo(-1, psErrInfo);
+	}
+	SCCBA_cancelSignPDF(iPortNo);
+	int iLength = 0;
+	unsigned char  psfeature[1024 * 64] = { 0 };
+	string feature((char *)psFeatureInfo);
+	base64::base64_decode(feature, psfeature, &iLength);
+	splitBuffer(psfeature, iLength, (unsigned char *)psFeature, &iLength, 0x30);
+	//memcpy(psFeature, psFeatureInfo, Fingerlength);
+	return getErrorInfo(0, psErrInfo);
+}
 #pragma endregion
 
 
@@ -3504,47 +3602,8 @@ BANKGWQ_API int __stdcall FingerEnable(int iPortNo, char extendPort, int iBaudRa
 #pragma region 6.1.3.2	获取指纹特征值
 BANKGWQ_API int __stdcall FPGetFeature(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, char * psFeature, char * psErrInfo)
 {
-	int iResult = 0;
-	time_t start = time(NULL);
-	//SCCBA_PlayVoice(iPortNo, "请按指纹");
-	char *strVoice = "请按指纹";
-	// 	unsigned char* pUtf8Voice = NULL;
-	// 	SCCBA_GB18030ToUTF8(strVoice, &pUtf8Voice);
-	SCCBA_StartInfoHtml(iPortNo, iTimeOut, 2, strVoice, strVoice, &iResult);
-	// 	if (pUtf8Voice != NULL)
-	// 	{
-	// 		delete[] pUtf8Voice;
-	// 	}
-	time_t end = time(NULL);
-	if (end - start > iTimeOut)
-	{
-		SCCBA_cancelSignPDF(iPortNo);
-		return getErrorInfo(-2, psErrInfo);
-	}
-	iTimeOut -= (end - start);
-	unsigned char psFeatureInfo[1024 * 64] = { 0 };
-	unsigned char pngdata[1024 * 64] = { 0 };
 	int Fingerlength = 0;
-	char bmppath[MAX_PATH] = { 0 };
-	string bmpfile;
-	getTempPath(bmppath);
-	bmpfile = bmppath;
-	bmpfile += "signa.bmp";
-	strcpy(bmppath, bmpfile.c_str());
-	int iret = TcGetFingerFeature(0, bmppath, psFeatureInfo, &Fingerlength, iTimeOut - 1);
-	if (iret != 0)
-	{
-		SCCBA_cancelSignPDF(iPortNo);
-		return getErrorInfo(-1, psErrInfo);
-	}
-	SCCBA_cancelSignPDF(iPortNo);
-	int iLength = 0;
-	unsigned char  psfeature[1024 * 64] = { 0 };
-	string feature((char *)psFeatureInfo);
-	base64::base64_decode(feature, psfeature, &iLength);
-	splitBuffer(psfeature, iLength, (unsigned char *)psFeature, &iLength, 0x30);
-	//memcpy(psFeature, psFeatureInfo, Fingerlength);
-	return getErrorInfo(0, psErrInfo);
+	return getFeature(iPortNo, extendPort, iBaudRate, iTimeOut, psFeature, &Fingerlength, psErrInfo);
 }
 #pragma endregion
 
@@ -3777,17 +3836,30 @@ BANKGWQ_API int __stdcall ShowPDF(int iPortNo, char extendPort, int iBaudRate, i
 	iTimeOut -= (end - start);
 	int iret = SCCBA_signPDF(iPortNo, (unsigned char *)pdfdata, iFileSize, page, x, y, w, h, iTimeOut, picdata, &piclen, signData, (int *)signDataLen);
 	delete[]pdfdata;
-	if (iret == -20)
+	if (iret == -20)//指纹签名
 	{
+		end = time(NULL);
 		iTimeOut -= (end - start);
-		char Feature[1024] = { 0 };
-		iret = FPGetFeature(iPortNo, extendPort, iBaudRate, iTimeOut, Feature, psErrInfo);
+		memset(signData, 0, strlen(signData));
+		iret = getFeature(iPortNo, extendPort, iBaudRate, iTimeOut, signData, (int *)signDataLen);
+
 		char bmppath[MAX_PATH] = { 0 };
 		string bmpfile;
 		getTempPath(bmppath);
 		bmpfile = bmppath;
 		bmpfile += "signa.bmp";
 		strcpy(bmppath, bmpfile.c_str());
+
+		CImage image;
+		image.Load(bmppath);
+		TransparentImage(image);
+		image.Save(signImgPath);//保存BMP
+
+		end = time(NULL);
+		iTimeOut -= (end - start);
+		DownOneFile(iPortNo, bmppath, "signa.bmp", 6, iTimeOut);
+		iret = getFingerSigna(iPortNo, page, x, y, w, h, signPdfPath);//获取指纹签名PDF
+		return iret;
 
 	}
 	if (iret != 0)
