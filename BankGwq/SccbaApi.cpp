@@ -1368,10 +1368,12 @@ int __stdcall SCCBA_signPDFByType(int type, int iPortNo, char* pButtonInfo, unsi
 		//Start to receive sign data
 		//Wait first frame
 		iReadSize = sizeof(szBuffer);
+		memset(szBuffer, 0, iReadSize);
 		iRet = comm_frame_receive(szBuffer, &iReadSize, iTimeout * 1000);
-		if ((szBuffer[0] != 'S') && (szBuffer[1] != 'F'))
+		if ((szBuffer[0] == 'S') && (szBuffer[1] == 'F'))
 		{
 			iRet = -20;
+			comm_close();
 			return iRet;
 		}
 		if ((szBuffer[0] == 'C') && (szBuffer[1] == 'L'))
@@ -3467,7 +3469,7 @@ int getFeature(int iPortNo, char extendPort, int iBaudRate, int iTimeOut, char *
 	bmpfile = bmppath;
 	bmpfile += "signa.bmp";
 	strcpy(bmppath, bmpfile.c_str());
-	int iret = TcGetFingerFeature(0, bmppath, psFeatureInfo, &psFeatureLength, iTimeOut - 1);
+	int iret = TcGetFingerFeature(0, bmppath, psFeatureInfo, psFeatureLength, iTimeOut - 1);
 	if (iret != 0)
 	{
 		SCCBA_cancelSignPDF(iPortNo);
@@ -3841,7 +3843,7 @@ BANKGWQ_API int __stdcall ShowPDF(int iPortNo, char extendPort, int iBaudRate, i
 		end = time(NULL);
 		iTimeOut -= (end - start);
 		memset(signData, 0, strlen(signData));
-		iret = getFeature(iPortNo, extendPort, iBaudRate, iTimeOut, signData, (int *)signDataLen);
+		iret = getFeature(iPortNo, extendPort, iBaudRate, iTimeOut, signData, (int *)signDataLen,psErrInfo);
 
 		char bmppath[MAX_PATH] = { 0 };
 		string bmpfile;
@@ -3850,8 +3852,15 @@ BANKGWQ_API int __stdcall ShowPDF(int iPortNo, char extendPort, int iBaudRate, i
 		bmpfile += "signa.bmp";
 		strcpy(bmppath, bmpfile.c_str());
 
+		FILE* fh = fopen(bmppath, "r");
+		if (fh == NULL)
+		{
+			return -1;
+		}
+		
 		CImage image;
 		image.Load(bmppath);
+		
 		TransparentImage(image);
 		image.Save(signImgPath);//±£¥ÊBMP
 
